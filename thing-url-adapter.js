@@ -8,15 +8,13 @@
 
 'use strict';
 
+const mdns = require('mdns');
 const fetch = require('node-fetch');
+const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 
 const Adapter = require('../adapter');
 const Device = require('../device');
 const Property = require('../property');
-
-const urls = [
-  'http://esp8266.local'
-];
 
 class ThingURLProperty extends Property {
   constructor(device, name, propertyDescription) {
@@ -81,7 +79,7 @@ class ThingURLAdapter extends Adapter {
     return fetch(url).then(res => {
       return res.json();
     }).then(thingDescription => {
-      let id = url.replace(/[:\/]/g, '-');
+      let id = url.replace(/[:/]/g, '-');
       return this.addDevice(id, url, thingDescription);
     });
   }
@@ -123,11 +121,29 @@ class ThingURLAdapter extends Adapter {
   }
 }
 
+function startEddystoneDiscovery(adapter) {
+  EddystoneBeaconScanner.on('found', function(beacon) {
+    if (beacon.type === 'webthing') {
+      adapter.loadThing(beacon.url);
+    }
+  });
+  EddystoneBeaconScanner.startScanning();
+}
+
+function startDNSDiscovery(adapter) {
+  var browser = mdns.createBrowser(mdns.tcp('http', 'webthing'));
+  browser.on('serviceUp', function(service) {
+    console.log('service up:', service);
+    adapter.loadThing('http://' + service.name + '.local' +
+                      service.txtRecord.href);
+  });
+  browser.start();
+}
+
 function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
   var adapter = new ThingURLAdapter(addonManager, manifest.name);
-  for (let url of urls) {
-    adapter.loadThing(url);
-  }
+  startEddystoneDiscovery(adapter);
+  startDNSDiscovery(adapter);
 }
 
 module.exports = loadThingURLAdapter;
