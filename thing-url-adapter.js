@@ -122,7 +122,7 @@ class ThingURLAdapter extends Adapter {
    * @param {String} deviceId ID of the device to remove.
    * @return {Promise} which resolves to the device removed.
    */
-  removeDevice(deviceId) {
+  removeThing(deviceId) {
     return new Promise((resolve, reject) => {
       const device = this.devices[deviceId];
       if (device) {
