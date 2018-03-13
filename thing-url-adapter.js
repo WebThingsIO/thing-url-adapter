@@ -55,12 +55,13 @@ class ThingURLProperty extends Property {
       body: JSON.stringify({
         [this.name]: value
       })
-    }).then(() => {
-      this.setCachedValue(value);
+    }).then(res => {
+      return res.json();
+    }).then(response => {
+      let updatedValue = response[this.name];
+      this.setCachedValue(updatedValue);
       this.device.notifyPropertyChanged(this);
-      return value;
-    }).catch(e => {
-      console.log('Failed to set property:', e);
+      return updatedValue;
     });
   }
 }
