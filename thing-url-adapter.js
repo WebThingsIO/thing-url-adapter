@@ -12,9 +12,21 @@ const mdns = require('mdns');
 const fetch = require('node-fetch');
 const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 
-const Adapter = require('../adapter');
-const Device = require('../device');
-const Property = require('../property');
+let Adapter, Device, Property;
+try {
+  Adapter = require('../adapter');
+  Device = require('../device');
+  Property = require('../property');
+} catch (e) {
+  if (e.code !== 'MODULE_NOT_FOUND') {
+    throw e;
+  }
+
+  const gwa = require('gateway-addon');
+  Adapter = gwa.Adapter;
+  Device = gwa.Device;
+  Property = gwa.Property;
+}
 
 class ThingURLProperty extends Property {
   constructor(device, name, propertyDescription) {
@@ -38,17 +50,17 @@ class ThingURLProperty extends Property {
       method: 'PUT',
       headers: {
         'Content-type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         [this.name]: value
       })
-    }).then(res => {
-      return res.json();
-    }).then(response => {
-      let updatedValue = response[this.name];
-      this.setCachedValue(updatedValue);
+    }).then(() => {
+      this.setCachedValue(value);
       this.device.notifyPropertyChanged(this);
-      return updatedValue;
+      return value;
+    }).catch(e => {
+      console.log('Failed to set property:', e);
     });
   }
 }
@@ -60,10 +72,10 @@ class ThingURLDevice extends Device {
     this.type = description.type;
     this.url = url;
     this.description = description.description;
-    for (var propertyName in description.properties) {
-      var propertyDescription = description.properties[propertyName];
-      var property = new ThingURLProperty(this, propertyName,
-                                        propertyDescription);
+    for (const propertyName in description.properties) {
+      const propertyDescription = description.properties[propertyName];
+      const property = new ThingURLProperty(this, propertyName,
+                                            propertyDescription);
       this.properties.set(propertyName, property);
     }
   }
@@ -76,12 +88,13 @@ class ThingURLAdapter extends Adapter {
   }
 
   loadThing(url) {
-    return fetch(url).then(res => {
+    return fetch(url, {headers: {Accept: 'application/json'}}).then(res => {
       return res.json();
     }).then(thingDescription => {
       let id = url.replace(/[:/]/g, '-');
+      url = url.replace(/\/$/, '');
       return this.addDevice(id, url, thingDescription);
-    });
+    }).catch(e => console.log('Failed to connect to', url, ':', e));
   }
 
   /**
@@ -95,7 +108,8 @@ class ThingURLAdapter extends Adapter {
       if (deviceId in this.devices) {
         reject('Device: ' + deviceId + ' already exists.');
       } else {
-        var device = new ThingURLDevice(this, deviceId, deviceURL, description);
+        const device =
+          new ThingURLDevice(this, deviceId, deviceURL, description);
         this.handleDeviceAdded(device);
         resolve(device);
       }
@@ -110,7 +124,7 @@ class ThingURLAdapter extends Adapter {
    */
   removeDevice(deviceId) {
     return new Promise((resolve, reject) => {
-      var device = this.devices[deviceId];
+      const device = this.devices[deviceId];
       if (device) {
         this.handleDeviceRemoved(device);
         resolve(device);
@@ -131,17 +145,15 @@ function startEddystoneDiscovery(adapter) {
 }
 
 function startDNSDiscovery(adapter) {
-  var browser = mdns.createBrowser(mdns.tcp('http', 'webthing'));
-  browser.on('serviceUp', function(service) {
-    console.log('service up:', service);
-    adapter.loadThing('http://' + service.name + '.local' +
-                      service.txtRecord.href);
+  const browser = mdns.createBrowser(mdns.tcp('http', 'webthing'));
+  browser.on('serviceUp', (service) => {
+    adapter.loadThing(service.txtRecord.url);
   });
   browser.start();
 }
 
 function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
-  var adapter = new ThingURLAdapter(addonManager, manifest.name);
+  const adapter = new ThingURLAdapter(addonManager, manifest.name);
   startEddystoneDiscovery(adapter);
   startDNSDiscovery(adapter);
 }
