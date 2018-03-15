@@ -120,17 +120,16 @@ class ThingURLAdapter extends Adapter {
   /**
    * Remove a ThingURLDevice from the ThingURLAdapter.
    *
-   * @param {String} deviceId ID of the device to remove.
+   * @param {Object} device The device to remove.
    * @return {Promise} which resolves to the device removed.
    */
-  removeThing(deviceId) {
+  removeThing(device) {
     return new Promise((resolve, reject) => {
-      const device = this.devices[deviceId];
-      if (device) {
+      if (this.devices.hasOwnProperty(device.id)) {
         this.handleDeviceRemoved(device);
         resolve(device);
       } else {
-        reject('Device: ' + deviceId + ' not found.');
+        reject('Device: ' + device.id + ' not found.');
       }
     });
   }
