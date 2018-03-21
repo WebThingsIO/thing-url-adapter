@@ -73,11 +73,22 @@ class ThingURLDevice extends Device {
     this.type = description.type;
     this.url = url;
     this.description = description.description;
+    this.propertyPromises = [];
+
     for (const propertyName in description.properties) {
       const propertyDescription = description.properties[propertyName];
-      const property = new ThingURLProperty(this, propertyName,
-                                            propertyDescription);
-      this.properties.set(propertyName, property);
+      const propUrl = url + propertyDescription.href;
+      this.propertyPromises.push(
+        fetch(propUrl, {headers: {Accept: 'application/json'}}).then(res => {
+          return res.json();
+        }).then(res => {
+          propertyDescription.value = res[propertyName];
+          const property = new ThingURLProperty(this, propertyName,
+                                                propertyDescription);
+          this.properties.set(propertyName, property);
+        }).catch(e => {
+          console.log('Failed to connect to', propUrl, ':', e);
+        }));
     }
   }
 }
@@ -111,8 +122,10 @@ class ThingURLAdapter extends Adapter {
       } else {
         const device =
           new ThingURLDevice(this, deviceId, deviceURL, description);
-        this.handleDeviceAdded(device);
-        resolve(device);
+        Promise.all(device.propertyPromises).then(() => {
+          this.handleDeviceAdded(device);
+          resolve(device);
+        }).catch(e => reject(e));
       }
     });
   }
