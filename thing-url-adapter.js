@@ -11,6 +11,7 @@
 const mdns = require('mdns');
 const fetch = require('node-fetch');
 const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
+const {URL} = require('url');
 
 let Adapter, Device, Property;
 try {
@@ -29,10 +30,10 @@ try {
 }
 
 class ThingURLProperty extends Property {
-  constructor(device, name, propertyDescription) {
+  constructor(device, name, url, propertyDescription) {
     super(device, name, propertyDescription);
+    this.url = url;
     this.unit = propertyDescription.unit;
-    this.url = device.url + propertyDescription.href;
     this.description = propertyDescription.description;
     this.setCachedValue(propertyDescription.value);
     this.device.notifyPropertyChanged(this);
@@ -75,19 +76,24 @@ class ThingURLDevice extends Device {
     this.description = description.description;
     this.propertyPromises = [];
 
+    const baseUrl = new URL(url).origin;
     for (const propertyName in description.properties) {
       const propertyDescription = description.properties[propertyName];
-      const propUrl = url + propertyDescription.href;
+      const propertyUrl = baseUrl + propertyDescription.href;
       this.propertyPromises.push(
-        fetch(propUrl, {headers: {Accept: 'application/json'}}).then(res => {
+        fetch(propertyUrl, {
+          headers: {
+            Accept: 'application/json',
+          },
+        }).then(res => {
           return res.json();
         }).then(res => {
           propertyDescription.value = res[propertyName];
-          const property = new ThingURLProperty(this, propertyName,
-                                                propertyDescription);
+          const property = new ThingURLProperty(
+            this, propertyName, propertyUrl, propertyDescription);
           this.properties.set(propertyName, property);
         }).catch(e => {
-          console.log('Failed to connect to', propUrl, ':', e);
+          console.log('Failed to connect to', propertyUrl, ':', e);
         }));
     }
   }
@@ -97,15 +103,38 @@ class ThingURLAdapter extends Adapter {
   constructor(addonManager, packageName) {
     super(addonManager, 'ThingURLPlugin', packageName);
     addonManager.addAdapter(this);
+    this.knownUrls = new Set();
   }
 
   loadThing(url) {
+    url = url.replace(/\/$/, '');
+
+    if (this.knownUrls.has(url)) {
+      return;
+    }
+
+    this.knownUrls.add(url);
+
     return fetch(url, {headers: {Accept: 'application/json'}}).then(res => {
       return res.json();
-    }).then(thingDescription => {
-      let id = url.replace(/[:/]/g, '-');
-      url = url.replace(/\/$/, '');
-      return this.addDevice(id, url, thingDescription);
+    }).then(data => {
+      let things;
+      if (Array.isArray(data)) {
+        things = data;
+      } else {
+        things = [data];
+      }
+
+      for (const thingDescription of things) {
+        let thingUrl = url;
+        if (thingDescription.hasOwnProperty('href')) {
+          const baseUrl = new URL(url).origin;
+          thingUrl = baseUrl + thingDescription.href;
+        }
+
+        let id = thingUrl.replace(/[:/]/g, '-');
+        this.addDevice(id, thingUrl, thingDescription);
+      }
     }).catch(e => console.log('Failed to connect to', url, ':', e));
   }
 
@@ -167,6 +196,11 @@ function startDNSDiscovery(adapter) {
 
 function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
   const adapter = new ThingURLAdapter(addonManager, manifest.name);
+
+  for (const url of manifest.moziot.config.urls) {
+    adapter.loadThing(url);
+  }
+
   startEddystoneDiscovery(adapter);
   startDNSDiscovery(adapter);
 }
