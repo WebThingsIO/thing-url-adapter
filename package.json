@@ -1,6 +1,6 @@
 {
   "name": "thing-url-adapter",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Add thing by url add-on for Mozilla IoT Gateway",
   "author": "Mozilla IoT",
   "main": "index.js",
@@ -31,7 +31,10 @@
       "max": 2
     },
     "plugin": true,
-    "exec": "{nodeLoader} {path}"
+    "exec": "{nodeLoader} {path}",
+    "config": {
+      "urls": []
+    }
   },
   "dependencies": {
     "dnssd": "^0.3.1",
