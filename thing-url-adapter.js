@@ -8,7 +8,7 @@
 
 'use strict';
 
-const mdns = require('mdns');
+const dnssd = require('dnssd');
 const fetch = require('node-fetch');
 const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 
@@ -158,9 +158,10 @@ function startEddystoneDiscovery(adapter) {
 }
 
 function startDNSDiscovery(adapter) {
-  const browser = mdns.createBrowser(mdns.tcp('http', 'webthing'));
+  const browser =
+    new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
   browser.on('serviceUp', (service) => {
-    adapter.loadThing(service.txtRecord.url);
+    adapter.loadThing(service.txt.url);
   });
   browser.start();
 }
