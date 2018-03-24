@@ -1,6 +1,6 @@
 {
   "name": "thing-url-adapter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Add thing by url add-on for Mozilla IoT Gateway",
   "author": "Mozilla IoT",
   "main": "index.js",
