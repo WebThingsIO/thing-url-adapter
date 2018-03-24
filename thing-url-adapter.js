@@ -8,6 +8,7 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
 const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
@@ -323,39 +324,52 @@ class ThingURLAdapter extends Adapter {
   constructor(addonManager, packageName) {
     super(addonManager, 'ThingURLPlugin', packageName);
     addonManager.addAdapter(this);
-    this.knownUrls = new Set();
+    this.knownUrls = {};
   }
 
-  loadThing(url) {
+  async loadThing(url) {
     url = url.replace(/\/$/, '');
 
-    if (this.knownUrls.has(url)) {
+    let res;
+    try {
+      res = await fetch(url, {headers: {Accept: 'application/json'}});
+    } catch(e) {
+      console.log('Failed to connect to', url, ':', e);
+    }
+
+    let text = await res.text();
+
+    const hash = crypto.createHash('md5');
+    hash.update(text);
+    const dig = hash.digest('hex');
+    if (this.knownUrls[url] === dig) {
       return;
     }
 
-    this.knownUrls.add(url);
+    this.knownUrls[url] = dig;
 
-    return fetch(url, {headers: {Accept: 'application/json'}}).then(res => {
-      return res.json();
-    }).then(data => {
-      let things;
-      if (Array.isArray(data)) {
-        things = data;
-      } else {
-        things = [data];
+    let data = JSON.parse(text);
+
+    let things;
+    if (Array.isArray(data)) {
+      things = data;
+    } else {
+      things = [data];
+    }
+
+    for (const thingDescription of things) {
+      let thingUrl = url;
+      if (thingDescription.hasOwnProperty('href')) {
+        const baseUrl = new URL(url).origin;
+        thingUrl = baseUrl + thingDescription.href;
       }
 
-      for (const thingDescription of things) {
-        let thingUrl = url;
-        if (thingDescription.hasOwnProperty('href')) {
-          const baseUrl = new URL(url).origin;
-          thingUrl = baseUrl + thingDescription.href;
-        }
-
-        let id = thingUrl.replace(/[:/]/g, '-');
-        this.addDevice(id, thingUrl, thingDescription);
+      let id = thingUrl.replace(/[:/]/g, '-');
+      if (id in this.devices) {
+        await this.removeThing(this.devices[id]);
       }
-    }).catch(e => console.log('Failed to connect to', url, ':', e));
+      await this.addDevice(id, thingUrl, thingDescription);
+    }
   }
 
   /**
