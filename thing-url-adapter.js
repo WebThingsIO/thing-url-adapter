@@ -335,6 +335,7 @@ class ThingURLAdapter extends Adapter {
       res = await fetch(url, {headers: {Accept: 'application/json'}});
     } catch(e) {
       console.log('Failed to connect to', url, ':', e);
+      return;
     }
 
     let text = await res.text();
@@ -348,7 +349,13 @@ class ThingURLAdapter extends Adapter {
 
     this.knownUrls[url] = dig;
 
-    let data = JSON.parse(text);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch(e) {
+      console.log('Failed to parse description at', url, ':', e);
+      return;
+    }
 
     let things;
     if (Array.isArray(data)) {
