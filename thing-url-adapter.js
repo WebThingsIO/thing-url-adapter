@@ -174,8 +174,13 @@ class ThingURLDevice extends Device {
             const propertyName = Object.keys(msg.data)[0];
             const property = this.findProperty(propertyName);
             if (property) {
-              property.setCachedValue(msg.data[propertyName]);
-              this.notifyPropertyChanged(property);
+              const newValue = msg.data[propertyName];
+              property.getValue().then(value => {
+                if (value !== newValue) {
+                  property.setCachedValue(newValue);
+                  this.notifyPropertyChanged(property);
+                }
+              });
             }
             break;
           }
@@ -232,11 +237,13 @@ class ThingURLDevice extends Device {
       }).then(res => {
         return res.json();
       }).then(res => {
-        const value = res[prop.name];
-        if (value !== prop.getValue()) {
-          prop.setCachedValue(value);
-          this.notifyPropertyChanged(prop);
-        }
+        const newValue = res[prop.name];
+        prop.getValue().then(value => {
+          if (value !== newValue) {
+            prop.setCachedValue(newValue);
+            this.notifyPropertyChanged(prop);
+          }
+        });
       }).catch(e => {
         console.log('Failed to connect to', prop.url, ':', e);
       });
