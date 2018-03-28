@@ -325,6 +325,29 @@ class ThingURLDevice extends Device {
       this.requestedActions.set(res[action.name].href, action);
     });
   }
+
+  cancelAction(actionId, actionName) {
+    let promise;
+
+    this.requestedActions.forEach((action, actionHref) => {
+      if (action.name === actionName && action.id === actionId) {
+        promise = fetch(actionHref, {
+          method: 'DELETE',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+
+        this.requestedActions.delete(actionHref);
+      }
+    });
+
+    if (!promise) {
+      promise = Promise.resolve();
+    }
+
+    return promise;
+  }
 }
 
 class ThingURLAdapter extends Adapter {
