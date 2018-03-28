@@ -34,6 +34,20 @@
     "exec": "{nodeLoader} {path}",
     "config": {
       "urls": []
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "urls"
+      ],
+      "properties": {
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "dependencies": {
