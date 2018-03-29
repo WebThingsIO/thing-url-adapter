@@ -458,12 +458,20 @@ function startEddystoneDiscovery(adapter) {
 }
 
 function startDNSDiscovery(adapter) {
-  const browser =
+  const webthingBrowser =
     new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
-  browser.on('serviceUp', (service) => {
+  webthingBrowser.on('serviceUp', (service) => {
     adapter.loadThing(service.txt.url);
   });
-  browser.start();
+  webthingBrowser.start();
+
+  const httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
+  httpBrowser.on('serviceUp', (service) => {
+    if (service.txt.hasOwnProperty('webthing')) {
+      adapter.loadThing(service.txt.url);
+    }
+  });
+  httpBrowser.start();
 }
 
 function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
