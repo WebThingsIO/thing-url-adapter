@@ -223,8 +223,15 @@ class ThingURLDevice extends Device {
       }
     });
 
-    this.ws.on('close', () => this.createWebsocket());
-    this.ws.on('error', () => this.createWebsocket());
+    const cleanupAndReopen = () => {
+      this.ws.removeAllListeners('close');
+      this.ws.removeAllListeners('error');
+      this.ws.close();
+      this.createWebsocket();
+    };
+
+    this.ws.on('close', cleanupAndReopen);
+    this.ws.on('error', cleanupAndReopen);
   }
 
   poll() {
