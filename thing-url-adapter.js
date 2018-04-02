@@ -380,8 +380,9 @@ class ThingURLAdapter extends Adapter {
     const hash = crypto.createHash('md5');
     hash.update(text);
     const dig = hash.digest('hex');
+    let known = false;
     if (this.knownUrls[url] === dig) {
-      return;
+      known = true;
     }
 
     this.knownUrls[url] = dig;
@@ -410,6 +411,9 @@ class ThingURLAdapter extends Adapter {
 
       let id = thingUrl.replace(/[:/]/g, '-');
       if (id in this.devices) {
+        if (known) {
+          continue;
+        }
         await this.removeThing(this.devices[id]);
       }
       await this.addDevice(id, thingUrl, thingDescription);
@@ -452,6 +456,14 @@ class ThingURLAdapter extends Adapter {
         reject('Device: ' + device.id + ' not found.');
       }
     });
+  }
+
+  startPairing() {
+    for (let knownUrl in this.knownUrls) {
+      this.loadThing(knownUrl).catch(err => {
+        console.warn('Unable to reload Things from url', knownUrl, err);
+      });
+    }
   }
 }
 
