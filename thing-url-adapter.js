@@ -15,27 +15,13 @@ const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 const {URL} = require('url');
 const WebSocket = require('ws');
 
-let Action, Adapter, Constants, Device, Event, Property;
-try {
-  Action = null;
-  Adapter = require('../adapter');
-  Constants = require('../addon-constants');
-  Device = require('../device');
-  Event = null;
-  Property = require('../property');
-} catch (e) {
-  if (e.code !== 'MODULE_NOT_FOUND') {
-    throw e;
-  }
-
-  const gwa = require('gateway-addon');
-  Action = gwa.Action;
-  Adapter = gwa.Adapter;
-  Constants = gwa.Constants;
-  Device = gwa.Device;
-  Event = gwa.Event;
-  Property = gwa.Property;
-}
+const {
+  Adapter,
+  Constants,
+  Device,
+  Event,
+  Property,
+} = require('gateway-addon');
 
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
@@ -59,15 +45,15 @@ class ThingURLProperty extends Property {
       method: 'PUT',
       headers: {
         'Content-type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
-        [this.name]: value
-      })
-    }).then(res => {
+        [this.name]: value,
+      }),
+    }).then((res) => {
       return res.json();
-    }).then(response => {
-      let updatedValue = response[this.name];
+    }).then((response) => {
+      const updatedValue = response[this.name];
       this.setCachedValue(updatedValue);
       this.device.notifyPropertyChanged(this);
       return updatedValue;
@@ -93,16 +79,12 @@ class ThingURLDevice extends Device {
     this.scheduledUpdate = null;
     this.updateInterval = 5000;
 
-    if (Action !== null) {
-      for (const actionName in description.actions) {
-        this.addAction(actionName, description.actions[actionName]);
-      }
+    for (const actionName in description.actions) {
+      this.addAction(actionName, description.actions[actionName]);
     }
 
-    if (Event !== null) {
-      for (const eventName in description.events) {
-        this.addEvent(eventName, description.events[eventName]);
-      }
+    for (const eventName in description.events) {
+      this.addEvent(eventName, description.events[eventName]);
     }
 
     for (const propertyName in description.properties) {
@@ -113,14 +95,14 @@ class ThingURLDevice extends Device {
           headers: {
             Accept: 'application/json',
           },
-        }).then(res => {
+        }).then((res) => {
           return res.json();
-        }).then(res => {
+        }).then((res) => {
           propertyDescription.value = res[propertyName];
           const property = new ThingURLProperty(
             this, propertyName, propertyUrl, propertyDescription);
           this.properties.set(propertyName, property);
-        }).catch(e => {
+        }).catch((e) => {
           console.log('Failed to connect to', propertyUrl, ':', e);
         }));
     }
@@ -150,19 +132,17 @@ class ThingURLDevice extends Device {
     this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
-      if (Event !== null) {
-        // Subscribe to all events
-        const msg = {
-          messageType: Constants.ADD_EVENT_SUBSCRIPTION,
-          data: {},
-        };
+      // Subscribe to all events
+      const msg = {
+        messageType: Constants.ADD_EVENT_SUBSCRIPTION,
+        data: {},
+      };
 
-        this.events.forEach((_value, key) => {
-          msg.data[key] = {};
-        });
+      this.events.forEach((_value, key) => {
+        msg.data[key] = {};
+      });
 
-        this.ws.send(JSON.stringify(msg));
-      }
+      this.ws.send(JSON.stringify(msg));
     });
 
     this.ws.on('message', (data) => {
@@ -175,7 +155,7 @@ class ThingURLDevice extends Device {
             const property = this.findProperty(propertyName);
             if (property) {
               const newValue = msg.data[propertyName];
-              property.getValue().then(value => {
+              property.getValue().then((value) => {
                 if (value !== newValue) {
                   property.setCachedValue(newValue);
                   this.notifyPropertyChanged(property);
@@ -185,35 +165,31 @@ class ThingURLDevice extends Device {
             break;
           }
           case Constants.ACTION_STATUS: {
-            if (Action !== null) {
-              const actionName = Object.keys(msg.data)[0];
-              const action = msg.data[actionName];
-              const requestedAction =
-                this.requestedActions.get(action.href);
-              if (requestedAction) {
-                requestedAction.status = action.status;
-                requestedAction.timeRequested = action.timeRequested;
-                requestedAction.timeCompleted = action.timeCompleted;
-                this.actionNotify(requestedAction);
-              }
+            const actionName = Object.keys(msg.data)[0];
+            const action = msg.data[actionName];
+            const requestedAction =
+              this.requestedActions.get(action.href);
+            if (requestedAction) {
+              requestedAction.status = action.status;
+              requestedAction.timeRequested = action.timeRequested;
+              requestedAction.timeCompleted = action.timeCompleted;
+              this.actionNotify(requestedAction);
             }
             break;
           }
           case Constants.EVENT: {
-            if (Event !== null) {
-              const eventName = Object.keys(msg.data)[0];
-              const eventId =
-                `${eventName}-${msg.data[eventName].timestamp}`;
+            const eventName = Object.keys(msg.data)[0];
+            const eventId =
+              `${eventName}-${msg.data[eventName].timestamp}`;
 
-              if (!this.notifiedEvents.has(eventId)) {
-                this.notifiedEvents.add(eventId);
-                const event = new Event(this,
-                                        eventName,
-                                        msg.data[eventName].data || null);
-                event.timestamp = msg.data[eventName].timestamp;
+            if (!this.notifiedEvents.has(eventId)) {
+              this.notifiedEvents.add(eventId);
+              const event = new Event(this,
+                                      eventName,
+                                      msg.data[eventName].data || null);
+              event.timestamp = msg.data[eventName].timestamp;
 
-                this.eventNotify(event);
-              }
+              this.eventNotify(event);
             }
             break;
           }
@@ -236,35 +212,35 @@ class ThingURLDevice extends Device {
 
   poll() {
     // Update properties
-    this.properties.forEach(prop => {
+    this.properties.forEach((prop) => {
       fetch(prop.url, {
         headers: {
           Accept: 'application/json',
         },
-      }).then(res => {
+      }).then((res) => {
         return res.json();
-      }).then(res => {
+      }).then((res) => {
         const newValue = res[prop.name];
-        prop.getValue().then(value => {
+        prop.getValue().then((value) => {
           if (value !== newValue) {
             prop.setCachedValue(newValue);
             this.notifyPropertyChanged(prop);
           }
         });
-      }).catch(e => {
+      }).catch((e) => {
         console.log('Failed to connect to', prop.url, ':', e);
       });
     });
 
     // Check for new actions
-    if (Action !== null && this.actionsUrl !== null) {
+    if (this.actionsUrl !== null) {
       fetch(this.actionsUrl, {
         headers: {
           Accept: 'application/json',
         },
-      }).then(res => {
+      }).then((res) => {
         return res.json();
-      }).then(actions => {
+      }).then((actions) => {
         for (let action of actions) {
           const actionName = Object.keys(action)[0];
           action = action[actionName];
@@ -278,20 +254,20 @@ class ThingURLDevice extends Device {
             this.actionNotify(requestedAction);
           }
         }
-      }).catch(e => {
+      }).catch((e) => {
         console.log('Failed to fetch actions list:', e);
       });
     }
 
     // Check for new events
-    if (Event !== null && this.eventsUrl !== null) {
+    if (this.eventsUrl !== null) {
       fetch(this.eventsUrl, {
         headers: {
           Accept: 'application/json',
         },
-      }).then(res => {
+      }).then((res) => {
         return res.json();
-      }).then(events => {
+      }).then((events) => {
         for (let event of events) {
           const eventName = Object.keys(event)[0];
           event = event[eventName];
@@ -305,7 +281,7 @@ class ThingURLDevice extends Device {
             this.eventNotify(e);
           }
         }
-      }).catch(e => {
+      }).catch((e) => {
         console.log('Failed to fetch events list:', e);
       });
     }
@@ -323,12 +299,12 @@ class ThingURLDevice extends Device {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({[action.name]: {input: action.input}}),
-    }).then(res => {
+    }).then((res) => {
       return res.json();
-    }).then(res => {
+    }).then((res) => {
       this.requestedActions.set(res[action.name].href, action);
     });
   }
@@ -341,7 +317,7 @@ class ThingURLDevice extends Device {
         promise = fetch(actionHref, {
           method: 'DELETE',
           headers: {
-            'Accept': 'application/json',
+            Accept: 'application/json',
           },
         });
 
@@ -370,12 +346,12 @@ class ThingURLAdapter extends Adapter {
     let res;
     try {
       res = await fetch(url, {headers: {Accept: 'application/json'}});
-    } catch(e) {
+    } catch (e) {
       console.log('Failed to connect to', url, ':', e);
       return;
     }
 
-    let text = await res.text();
+    const text = await res.text();
 
     const hash = crypto.createHash('md5');
     hash.update(text);
@@ -390,7 +366,7 @@ class ThingURLAdapter extends Adapter {
     let data;
     try {
       data = JSON.parse(text);
-    } catch(e) {
+    } catch (e) {
       console.log('Failed to parse description at', url, ':', e);
       return;
     }
@@ -409,7 +385,7 @@ class ThingURLAdapter extends Adapter {
         thingUrl = baseUrl + thingDescription.href;
       }
 
-      let id = thingUrl.replace(/[:/]/g, '-');
+      const id = thingUrl.replace(/[:/]/g, '-');
       if (id in this.devices) {
         if (known) {
           continue;
@@ -429,14 +405,14 @@ class ThingURLAdapter extends Adapter {
   addDevice(deviceId, deviceURL, description) {
     return new Promise((resolve, reject) => {
       if (deviceId in this.devices) {
-        reject('Device: ' + deviceId + ' already exists.');
+        reject(`Device: ${deviceId} already exists.`);
       } else {
         const device =
           new ThingURLDevice(this, deviceId, deviceURL, description);
         Promise.all(device.propertyPromises).then(() => {
           this.handleDeviceAdded(device);
           resolve(device);
-        }).catch(e => reject(e));
+        }).catch((e) => reject(e));
       }
     });
   }
@@ -453,14 +429,14 @@ class ThingURLAdapter extends Adapter {
         this.handleDeviceRemoved(device);
         resolve(device);
       } else {
-        reject('Device: ' + device.id + ' not found.');
+        reject(`Device: ${device.id} not found.`);
       }
     });
   }
 
   startPairing() {
-    for (let knownUrl in this.knownUrls) {
-      this.loadThing(knownUrl).catch(err => {
+    for (const knownUrl in this.knownUrls) {
+      this.loadThing(knownUrl).catch((err) => {
         console.warn('Unable to reload Things from url', knownUrl, err);
       });
     }
