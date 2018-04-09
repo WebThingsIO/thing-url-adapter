@@ -18,6 +18,7 @@ const WebSocket = require('ws');
 const {
   Adapter,
   Constants,
+  Database,
   Device,
   Event,
   Property,
@@ -424,14 +425,42 @@ class ThingURLAdapter extends Adapter {
    * @return {Promise} which resolves to the device removed.
    */
   removeThing(device) {
-    return new Promise((resolve, reject) => {
+    return this.removeDeviceFromConfig(device).then(() => {
       if (this.devices.hasOwnProperty(device.id)) {
         this.handleDeviceRemoved(device);
-        resolve(device);
+        return device;
       } else {
-        reject(`Device: ${device.id} not found.`);
+        throw new Error(`Device: ${device.id} not found.`);
       }
     });
+  }
+
+  /**
+   * Remove a device's URL from this adapter's config if it was manually added.
+   *
+   * @param {Object} device The device to remove.
+   */
+  async removeDeviceFromConfig(device) {
+    try {
+      const db = new Database(this.packageName);
+      await db.open();
+      const config = await db.loadConfig();
+
+      // If the device's URL is saved in the config, remove it.
+      const urlIndex = config.urls.indexOf(device.url);
+      if (urlIndex >= 0) {
+        config.urls.splice(urlIndex, 1);
+        await db.saveConfig(config);
+
+        // Remove from list of known URLs as well.
+        const adjustedUrl = device.url.replace(/\/$/, '');
+        if (this.knownUrls.hasOwnProperty(adjustedUrl)) {
+          delete this.knownUrls[adjustedUrl];
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to remove device ${device.id} from config:`, err);
+    }
   }
 
   startPairing() {
