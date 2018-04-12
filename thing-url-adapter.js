@@ -133,17 +133,19 @@ class ThingURLDevice extends Device {
     this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
-      // Subscribe to all events
-      const msg = {
-        messageType: Constants.ADD_EVENT_SUBSCRIPTION,
-        data: {},
-      };
+      if (this.events.size > 0) {
+        // Subscribe to all events
+        const msg = {
+          messageType: Constants.ADD_EVENT_SUBSCRIPTION,
+          data: {},
+        };
 
-      this.events.forEach((_value, key) => {
-        msg.data[key] = {};
-      });
+        this.events.forEach((_value, key) => {
+          msg.data[key] = {};
+        });
 
-      this.ws.send(JSON.stringify(msg));
+        this.ws.send(JSON.stringify(msg));
+      }
     });
 
     this.ws.on('message', (data) => {
