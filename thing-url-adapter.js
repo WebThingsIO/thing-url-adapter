@@ -24,6 +24,9 @@ const {
   Property,
 } = require('gateway-addon');
 
+let webthingBrowser;
+let httpBrowser;
+
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
     super(device, name, propertyDescription);
@@ -126,6 +129,17 @@ class ThingURLDevice extends Device {
     // If there's no websocket endpoint, poll the device for updates.
     if (!this.ws) {
       Promise.all(this.propertyPromises).then(() => this.poll());
+    }
+  }
+
+  closeWebsocket() {
+    if (this.ws) {
+      this.ws.removeAllListeners('close');
+      this.ws.removeAllListeners('error');
+      this.ws.close();
+      this.ws = null;
+    } else if (this.scheduledUpdate) {
+      clearTimeout(this.scheduledUpdate);
     }
   }
 
@@ -338,7 +352,7 @@ class ThingURLDevice extends Device {
 
 class ThingURLAdapter extends Adapter {
   constructor(addonManager, packageName) {
-    super(addonManager, 'ThingURLPlugin', packageName);
+    super(addonManager, packageName, packageName);
     addonManager.addAdapter(this);
     this.knownUrls = {};
   }
@@ -472,6 +486,24 @@ class ThingURLAdapter extends Adapter {
       });
     }
   }
+
+  unload() {
+    EddystoneBeaconScanner.stopScanning();
+
+    if (webthingBrowser) {
+      webthingBrowser.stop();
+    }
+
+    if (httpBrowser) {
+      httpBrowser.stop();
+    }
+
+    for (const id in this.devices) {
+      this.devices[id].closeWebsocket();
+    }
+
+    return super.unload();
+  }
 }
 
 function startEddystoneDiscovery(adapter) {
@@ -484,14 +516,14 @@ function startEddystoneDiscovery(adapter) {
 }
 
 function startDNSDiscovery(adapter) {
-  const webthingBrowser =
+  webthingBrowser =
     new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
   webthingBrowser.on('serviceUp', (service) => {
     adapter.loadThing(service.txt.url);
   });
   webthingBrowser.start();
 
-  const httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
+  httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
   httpBrowser.on('serviceUp', (service) => {
     if (service.txt.hasOwnProperty('webthing')) {
       adapter.loadThing(service.txt.url);
