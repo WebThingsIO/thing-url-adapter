@@ -357,14 +357,24 @@ class ThingURLAdapter extends Adapter {
     this.knownUrls = {};
   }
 
-  async loadThing(url) {
+  async loadThing(url, retryCounter) {
+    if (typeof retryCounter === 'undefined') {
+      retryCounter = 0;
+    }
+
     url = url.replace(/\/$/, '');
 
     let res;
     try {
       res = await fetch(url, {headers: {Accept: 'application/json'}});
     } catch (e) {
-      console.log('Failed to connect to', url, ':', e);
+      // Retry the connection at a 2 second interval up to 5 times.
+      if (retryCounter >= 5) {
+        console.log('Failed to connect to', url, ':', e);
+      } else {
+        setTimeout(() => this.loadThing(url, retryCounter + 1), 2000);
+      }
+
       return;
     }
 
