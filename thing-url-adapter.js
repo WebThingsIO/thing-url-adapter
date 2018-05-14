@@ -360,6 +360,17 @@ class ThingURLAdapter extends Adapter {
   async loadThing(url) {
     url = url.replace(/\/$/, '');
 
+    if (!this.knownUrls[url]) {
+      this.knownUrls[url] = {
+        digest: '',
+        timestamp: 0,
+      };
+    }
+
+    if (this.knownUrls[url].timestamp + 5000 > Date.now()) {
+      return;
+    }
+
     let res;
     try {
       res = await fetch(url, {headers: {Accept: 'application/json'}});
@@ -374,11 +385,14 @@ class ThingURLAdapter extends Adapter {
     hash.update(text);
     const dig = hash.digest('hex');
     let known = false;
-    if (this.knownUrls[url] === dig) {
+    if (this.knownUrls[url].digest === dig) {
       known = true;
     }
 
-    this.knownUrls[url] = dig;
+    this.knownUrls[url] = {
+      digest: dig,
+      timestamp: Date.now(),
+    };
 
     let data;
     try {
