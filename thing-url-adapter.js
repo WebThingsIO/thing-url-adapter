@@ -136,7 +136,11 @@ class ThingURLDevice extends Device {
     if (this.ws) {
       this.ws.removeAllListeners('close');
       this.ws.removeAllListeners('error');
-      this.ws.close();
+
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close();
+      }
+
       this.ws = null;
     } else if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
