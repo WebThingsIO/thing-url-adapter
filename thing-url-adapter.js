@@ -553,7 +553,8 @@ function startDNSDiscovery(adapter) {
 
   httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
   httpBrowser.on('serviceUp', (service) => {
-    if (service.txt.hasOwnProperty('webthing')) {
+    if (typeof service.txt === 'object' &&
+        service.txt.hasOwnProperty('webthing')) {
       adapter.loadThing(service.txt.url);
     }
   });
