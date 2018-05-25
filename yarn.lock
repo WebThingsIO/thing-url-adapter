@@ -340,9 +340,9 @@ detect-libc@^1.0.2:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/detect-libc/-/detect-libc-1.0.3.tgz#fa137c4bd698edf55cd5cd02ac559f91a4c4ba9b"
 
-dnssd@^0.3.1:
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/dnssd/-/dnssd-0.3.1.tgz#de781a67c45928e0a60e051df58ac564fc9d1eea"
+dnssd@^0.3.3:
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/dnssd/-/dnssd-0.3.3.tgz#55c89c9c4a988e04a3b17c234b238f5d165caef3"
 
 doctrine@^2.1.0:
   version "2.1.0"
@@ -1352,9 +1352,9 @@ write@^0.2.1:
   dependencies:
     mkdirp "^0.5.1"
 
-ws@^5.1.0:
-  version "5.1.1"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-5.1.1.tgz#1d43704689711ac1942fd2f283e38f825c4b8b95"
+ws@^5.2.0:
+  version "5.2.0"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.0.tgz#9fd95e3ac7c76f6ae8bcc868a0e3f11f1290c33e"
   dependencies:
     async-limiter "~1.0.0"
 

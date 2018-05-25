@@ -11,6 +11,7 @@
 const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
+const fs = require('fs');
 const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 const {URL} = require('url');
 const WebSocket = require('ws');
@@ -535,6 +536,8 @@ class ThingURLAdapter extends Adapter {
 }
 
 function startEddystoneDiscovery(adapter) {
+  console.log('Starting Eddystone discovery');
+
   EddystoneBeaconScanner.on('found', function(beacon) {
     if (beacon.type === 'webthing') {
       adapter.loadThing(beacon.url);
@@ -544,6 +547,8 @@ function startEddystoneDiscovery(adapter) {
 }
 
 function startDNSDiscovery(adapter) {
+  console.log('Starting mDNS discovery');
+
   webthingBrowser =
     new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
   webthingBrowser.on('serviceUp', (service) => {
@@ -568,8 +573,24 @@ function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
     adapter.loadThing(url);
   }
 
-  startEddystoneDiscovery(adapter);
   startDNSDiscovery(adapter);
+
+  // Skip starting Eddystone discovery inside Docker/LXC containers, as it will
+  // segfault.
+  let procData;
+  try {
+    fs.readFileSync('/proc/1/cgroup', 'utf8');
+  } catch (_e) {
+    procData = '';
+  }
+
+  if (fs.existsSync('/.dockerenv') ||
+      (procData && (procData.indexOf(':/docker/') > 0 ||
+                    procData.indexOf(':/lxc/') > 0))) {
+    return;
+  }
+
+  startEddystoneDiscovery(adapter);
 }
 
 module.exports = loadThingURLAdapter;

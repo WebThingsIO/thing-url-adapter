@@ -1,6 +1,6 @@
 {
   "name": "thing-url-adapter",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Native web thing support",
   "author": "Mozilla IoT",
   "main": "index.js",
@@ -52,10 +52,10 @@
     }
   },
   "dependencies": {
-    "dnssd": "^0.3.1",
+    "dnssd": "^0.3.3",
     "eddystone-beacon-scanner": "^3.0.0",
     "node-fetch": "^2.1.1",
-    "ws": "^5.1.0"
+    "ws": "^5.2.0"
   },
   "devDependencies": {
     "eslint": "^4.18.2"
