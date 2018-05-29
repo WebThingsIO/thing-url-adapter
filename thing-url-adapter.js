@@ -119,10 +119,19 @@ class ThingURLDevice extends Device {
           this.actionsUrl = this.baseUrl + link.href;
         } else if (link.rel === 'events') {
           this.eventsUrl = this.baseUrl + link.href;
-        } else if (link.href.startsWith('ws://') ||
-                   link.href.startsWith('wss://')) {
-          this.wsUrl = link.href;
-          this.createWebsocket();
+        } else if (link.rel === 'alternate') {
+          if (link.mediaType === 'text/html') {
+            if (link.href.startsWith('http://') ||
+                link.href.startsWith('https://')) {
+              this.uiHref = link.href;
+            } else {
+              this.uiHref = `${this.baseUrl}${link.href}`;
+            }
+          } else if (link.href.startsWith('ws://') ||
+                     link.href.startsWith('wss://')) {
+            this.wsUrl = link.href;
+            this.createWebsocket();
+          }
         }
       }
     }
