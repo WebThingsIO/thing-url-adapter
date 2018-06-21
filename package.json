@@ -1,6 +1,7 @@
 {
   "name": "thing-url-adapter",
-  "version": "0.1.12",
+  "display_name": "Web Thing",
+  "version": "0.1.13",
   "description": "Native web thing support",
   "author": "Mozilla IoT",
   "main": "index.js",
