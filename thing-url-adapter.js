@@ -32,8 +32,6 @@ class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
     super(device, name, propertyDescription);
     this.url = url;
-    this.unit = propertyDescription.unit;
-    this.description = propertyDescription.description;
     this.setCachedValue(propertyDescription.value);
     this.device.notifyPropertyChanged(this);
   }
@@ -71,6 +69,9 @@ class ThingURLDevice extends Device {
     super(adapter, id);
     this.name = description.name;
     this.type = description.type;
+    this['@context'] =
+      description['@context'] || 'https://iot.mozilla.org/schemas';
+    this['@type'] = description['@type'] || [];
     this.url = url;
     this.actionsUrl = null;
     this.eventsUrl = null;
