@@ -548,8 +548,8 @@ class ThingURLAdapter extends Adapter {
 function startEddystoneDiscovery(adapter) {
   console.log('Starting Eddystone discovery');
 
-  EddystoneBeaconScanner.on('found', function(beacon) {
-    if (beacon.type === 'webthing') {
+  EddystoneBeaconScanner.on('found', (beacon) => {
+    if (beacon.type === 'url') {
       adapter.loadThing(beacon.url);
     }
   });
