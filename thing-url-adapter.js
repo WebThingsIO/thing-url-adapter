@@ -26,6 +26,7 @@ const {
 } = require('gateway-addon');
 
 let webthingBrowser;
+let subtypeBrowser;
 let httpBrowser;
 
 class ThingURLProperty extends Property {
@@ -533,6 +534,10 @@ class ThingURLAdapter extends Adapter {
       webthingBrowser.stop();
     }
 
+    if (subtypeBrowser) {
+      subtypeBrowser.stop();
+    }
+
     if (httpBrowser) {
       httpBrowser.stop();
     }
@@ -560,11 +565,20 @@ function startDNSDiscovery(adapter) {
   console.log('Starting mDNS discovery');
 
   webthingBrowser =
-    new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
+    new dnssd.Browser(new dnssd.ServiceType('_webthing._tcp'));
   webthingBrowser.on('serviceUp', (service) => {
-    adapter.loadThing(service.txt.url);
+    adapter.loadThing(
+      `http://${service.host}:${service.port}${service.txt.path}`);
   });
   webthingBrowser.start();
+
+  // Support legacy devices
+  subtypeBrowser =
+    new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
+  subtypeBrowser.on('serviceUp', (service) => {
+    adapter.loadThing(service.txt.url);
+  });
+  subtypeBrowser.start();
 
   httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
   httpBrowser.on('serviceUp', (service) => {
