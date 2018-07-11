@@ -567,8 +567,8 @@ function startDNSDiscovery(adapter) {
   webthingBrowser =
     new dnssd.Browser(new dnssd.ServiceType('_webthing._tcp'));
   webthingBrowser.on('serviceUp', (service) => {
-    adapter.loadThing(
-      `http://${service.host}:${service.port}${service.txt.path}`);
+    const host = service.host.replace(/\.$/, '');
+    adapter.loadThing(`http://${host}:${service.port}${service.txt.path}`);
   });
   webthingBrowser.start();
 
