@@ -244,6 +244,8 @@ class ThingURLDevice extends Device {
       this.ws.removeAllListeners('close');
       this.ws.removeAllListeners('error');
       this.ws.close();
+      this.ws = null;
+
       this.createWebsocket();
     };
 
