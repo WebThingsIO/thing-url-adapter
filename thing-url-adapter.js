@@ -61,12 +61,15 @@ class ThingURLProperty extends Property {
       this.setCachedValue(updatedValue);
       this.device.notifyPropertyChanged(this);
       return updatedValue;
+    }).catch((e) => {
+      console.log(`Failed to set ${this.name}:`, e);
+      return this.value;
     });
   }
 }
 
 class ThingURLDevice extends Device {
-  constructor(adapter, id, url, description) {
+  constructor(adapter, id, url, description, mdnsUrl) {
     super(adapter, id);
     this.name = description.name;
     this.type = description.type;
@@ -74,6 +77,7 @@ class ThingURLDevice extends Device {
       description['@context'] || 'https://iot.mozilla.org/schemas';
     this['@type'] = description['@type'] || [];
     this.url = url;
+    this.mdnsUrl = mdnsUrl;
     this.actionsUrl = null;
     this.eventsUrl = null;
     this.wsUrl = null;
@@ -85,6 +89,7 @@ class ThingURLDevice extends Device {
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.updateInterval = 5000;
+    this.closingWs = false;
 
     for (const actionName in description.actions) {
       this.addAction(actionName, description.actions[actionName]);
@@ -110,7 +115,7 @@ class ThingURLDevice extends Device {
             this, propertyName, propertyUrl, propertyDescription);
           this.properties.set(propertyName, property);
         }).catch((e) => {
-          console.log('Failed to connect to', propertyUrl, ':', e);
+          console.log(`Failed to connect to ${propertyUrl}:`, e);
         }));
     }
 
@@ -145,21 +150,24 @@ class ThingURLDevice extends Device {
   }
 
   closeWebsocket() {
-    if (this.ws) {
-      this.ws.removeAllListeners('close');
-      this.ws.removeAllListeners('error');
+    if (this.ws !== null) {
+      this.closingWs = true;
 
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.close();
       }
 
-      this.ws = null;
+      // Allow the cleanup code in createWebsocket to handle shutdown
     } else if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
     }
   }
 
   createWebsocket() {
+    if (this.closingWs) {
+      return;
+    }
+
     this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
@@ -228,7 +236,7 @@ class ThingURLDevice extends Device {
           }
         }
       } catch (e) {
-        console.log(e);
+        console.log('Error receiving websocket message:', e);
       }
     });
 
@@ -236,6 +244,8 @@ class ThingURLDevice extends Device {
       this.ws.removeAllListeners('close');
       this.ws.removeAllListeners('error');
       this.ws.close();
+      this.ws = null;
+
       this.createWebsocket();
     };
 
@@ -261,7 +271,7 @@ class ThingURLDevice extends Device {
           }
         });
       }).catch((e) => {
-        console.log('Failed to connect to', prop.url, ':', e);
+        console.log(`Failed to connect to ${prop.url}:`, e);
       });
     });
 
@@ -339,6 +349,10 @@ class ThingURLDevice extends Device {
       return res.json();
     }).then((res) => {
       this.requestedActions.set(res[action.name].href, action);
+    }).catch((e) => {
+      console.log('Failed to perform action:', e);
+      action.status = 'error';
+      this.actionNotify(action);
     });
   }
 
@@ -352,6 +366,8 @@ class ThingURLDevice extends Device {
           headers: {
             Accept: 'application/json',
           },
+        }).catch((e) => {
+          console.log('Failed to cancel action:', e);
         });
 
         this.requestedActions.delete(actionHref);
@@ -397,7 +413,7 @@ class ThingURLAdapter extends Adapter {
     } catch (e) {
       // Retry the connection at a 2 second interval up to 5 times.
       if (retryCounter >= 5) {
-        console.log('Failed to connect to', url, ':', e);
+        console.log(`Failed to connect to ${url}:`, e);
       } else {
         setTimeout(() => this.loadThing(url, retryCounter + 1), 2000);
       }
@@ -424,7 +440,7 @@ class ThingURLAdapter extends Adapter {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.log('Failed to parse description at', url, ':', e);
+      console.log(`Failed to parse description at ${url}:`, e);
       return;
     }
 
@@ -449,7 +465,23 @@ class ThingURLAdapter extends Adapter {
         }
         await this.removeThing(this.devices[id]);
       }
-      await this.addDevice(id, thingUrl, thingDescription);
+      await this.addDevice(id, thingUrl, thingDescription, url);
+    }
+  }
+
+  unloadThing(url) {
+    url = url.replace(/\/$/, '');
+
+    for (const id in this.devices) {
+      const device = this.devices[id];
+      if (device.mdnsUrl === url) {
+        device.closeWebsocket();
+        this.removeThing(device);
+      }
+    }
+
+    if (this.knownUrls[url]) {
+      delete this.knownUrls[url];
     }
   }
 
@@ -459,13 +491,13 @@ class ThingURLAdapter extends Adapter {
    * @param {String} deviceId ID of the device to add.
    * @return {Promise} which resolves to the device added.
    */
-  addDevice(deviceId, deviceURL, description) {
+  addDevice(deviceId, deviceURL, description, mdnsUrl) {
     return new Promise((resolve, reject) => {
       if (deviceId in this.devices) {
         reject(`Device: ${deviceId} already exists.`);
       } else {
         const device =
-          new ThingURLDevice(this, deviceId, deviceURL, description);
+          new ThingURLDevice(this, deviceId, deviceURL, description, mdnsUrl);
         Promise.all(device.propertyPromises).then(() => {
           this.handleDeviceAdded(device);
           resolve(device);
@@ -570,6 +602,10 @@ function startDNSDiscovery(adapter) {
     const host = service.host.replace(/\.$/, '');
     adapter.loadThing(`http://${host}:${service.port}${service.txt.path}`);
   });
+  webthingBrowser.on('serviceDown', (service) => {
+    const host = service.host.replace(/\.$/, '');
+    adapter.unloadThing(`http://${host}:${service.port}${service.txt.path}`);
+  });
   webthingBrowser.start();
 
   // Support legacy devices
@@ -578,6 +614,9 @@ function startDNSDiscovery(adapter) {
   subtypeBrowser.on('serviceUp', (service) => {
     adapter.loadThing(service.txt.url);
   });
+  subtypeBrowser.on('serviceDown', (service) => {
+    adapter.unloadThing(service.txt.url);
+  });
   subtypeBrowser.start();
 
   httpBrowser = new dnssd.Browser(new dnssd.ServiceType('_http._tcp'));
@@ -585,6 +624,12 @@ function startDNSDiscovery(adapter) {
     if (typeof service.txt === 'object' &&
         service.txt.hasOwnProperty('webthing')) {
       adapter.loadThing(service.txt.url);
+    }
+  });
+  httpBrowser.on('serviceDown', (service) => {
+    if (typeof service.txt === 'object' &&
+        service.txt.hasOwnProperty('webthing')) {
+      adapter.unloadThing(service.txt.url);
     }
   });
   httpBrowser.start();
