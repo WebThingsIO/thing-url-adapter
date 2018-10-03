@@ -12,7 +12,12 @@ const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
 const fs = require('fs');
-const EddystoneBeaconScanner = require('eddystone-beacon-scanner');
+let EddystoneBeaconScanner;
+try {
+  EddystoneBeaconScanner = require('eddystone-beacon-scanner');
+} catch (e) {
+  console.warn('EddystoneBeaconScanner unsupported in current environment', e);
+}
 const {URL} = require('url');
 const WebSocket = require('ws');
 
@@ -560,7 +565,9 @@ class ThingURLAdapter extends Adapter {
   }
 
   unload() {
-    EddystoneBeaconScanner.stopScanning();
+    if (EddystoneBeaconScanner) {
+      EddystoneBeaconScanner.stopScanning();
+    }
 
     if (webthingBrowser) {
       webthingBrowser.stop();
@@ -583,6 +590,9 @@ class ThingURLAdapter extends Adapter {
 }
 
 function startEddystoneDiscovery(adapter) {
+  if (!EddystoneBeaconScanner) {
+    return;
+  }
   console.log('Starting Eddystone discovery');
 
   EddystoneBeaconScanner.on('found', (beacon) => {
