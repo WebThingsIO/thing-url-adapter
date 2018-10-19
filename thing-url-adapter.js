@@ -16,7 +16,7 @@ let EddystoneBeaconScanner;
 try {
   EddystoneBeaconScanner = require('eddystone-beacon-scanner');
 } catch (e) {
-  console.warn('EddystoneBeaconScanner unsupported in current environment', e);
+  console.warn('EddystoneBeaconScanner unsupported in current environment:', e);
 }
 const {URL} = require('url');
 const WebSocket = require('ws');
@@ -67,7 +67,7 @@ class ThingURLProperty extends Property {
       this.device.notifyPropertyChanged(this);
       return updatedValue;
     }).catch((e) => {
-      console.log(`Failed to set ${this.name}:`, e);
+      console.log(`Failed to set ${this.name}: ${e}`);
       return this.value;
     });
   }
@@ -120,7 +120,7 @@ class ThingURLDevice extends Device {
             this, propertyName, propertyUrl, propertyDescription);
           this.properties.set(propertyName, property);
         }).catch((e) => {
-          console.log(`Failed to connect to ${propertyUrl}:`, e);
+          console.log(`Failed to connect to ${propertyUrl}: ${e}`);
         }));
     }
 
@@ -241,7 +241,7 @@ class ThingURLDevice extends Device {
           }
         }
       } catch (e) {
-        console.log('Error receiving websocket message:', e);
+        console.log(`Error receiving websocket message: ${e}`);
       }
     });
 
@@ -276,7 +276,7 @@ class ThingURLDevice extends Device {
           }
         });
       }).catch((e) => {
-        console.log(`Failed to connect to ${prop.url}:`, e);
+        console.log(`Failed to connect to ${prop.url}: ${e}`);
       });
     });
 
@@ -303,7 +303,7 @@ class ThingURLDevice extends Device {
           }
         }
       }).catch((e) => {
-        console.log('Failed to fetch actions list:', e);
+        console.log(`Failed to fetch actions list: ${e}`);
       });
     }
 
@@ -330,7 +330,7 @@ class ThingURLDevice extends Device {
           }
         }
       }).catch((e) => {
-        console.log('Failed to fetch events list:', e);
+        console.log(`Failed to fetch events list: ${e}`);
       });
     }
 
@@ -355,7 +355,7 @@ class ThingURLDevice extends Device {
     }).then((res) => {
       this.requestedActions.set(res[action.name].href, action);
     }).catch((e) => {
-      console.log('Failed to perform action:', e);
+      console.log(`Failed to perform action: ${e}`);
       action.status = 'error';
       this.actionNotify(action);
     });
@@ -372,7 +372,7 @@ class ThingURLDevice extends Device {
             Accept: 'application/json',
           },
         }).catch((e) => {
-          console.log('Failed to cancel action:', e);
+          console.log(`Failed to cancel action: ${e}`);
         });
 
         this.requestedActions.delete(actionHref);
@@ -418,7 +418,7 @@ class ThingURLAdapter extends Adapter {
     } catch (e) {
       // Retry the connection at a 2 second interval up to 5 times.
       if (retryCounter >= 5) {
-        console.log(`Failed to connect to ${url}:`, e);
+        console.log(`Failed to connect to ${url}: ${e}`);
       } else {
         setTimeout(() => this.loadThing(url, retryCounter + 1), 2000);
       }
@@ -445,7 +445,7 @@ class ThingURLAdapter extends Adapter {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.log(`Failed to parse description at ${url}:`, e);
+      console.log(`Failed to parse description at ${url}: ${e}`);
       return;
     }
 
@@ -552,14 +552,14 @@ class ThingURLAdapter extends Adapter {
         }
       }
     } catch (err) {
-      console.error(`Failed to remove device ${device.id} from config:`, err);
+      console.error(`Failed to remove device ${device.id} from config: ${err}`);
     }
   }
 
   startPairing() {
     for (const knownUrl in this.knownUrls) {
       this.loadThing(knownUrl).catch((err) => {
-        console.warn('Unable to reload Things from url', knownUrl, err);
+        console.warn(`Unable to reload Thing(s) from ${knownUrl}: ${err}`);
       });
     }
   }
