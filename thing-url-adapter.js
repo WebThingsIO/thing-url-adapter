@@ -12,14 +12,10 @@ const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
 const fs = require('fs');
-let EddystoneBeaconScanner;
-try {
-  EddystoneBeaconScanner = require('eddystone-beacon-scanner');
-} catch (e) {
-  console.warn('EddystoneBeaconScanner unsupported in current environment:', e);
-}
 const {URL} = require('url');
 const WebSocket = require('ws');
+
+let EddystoneBeaconScanner = null;
 
 const {
   Adapter,
@@ -669,7 +665,18 @@ function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
     return;
   }
 
-  startEddystoneDiscovery(adapter);
+  if (typeof manifest.moziot.config.bluetoothEnabled === 'undefined' ||
+      manifest.moziot.config.bluetoothEnabled) {
+    try {
+      EddystoneBeaconScanner = require('eddystone-beacon-scanner');
+      startEddystoneDiscovery(adapter);
+    } catch (e) {
+      console.warn('EddystoneBeaconScanner unsupported in current environment:',
+                   e);
+    }
+  } else {
+    console.log('Disabling bluetooth scanning');
+  }
 }
 
 module.exports = loadThingURLAdapter;
