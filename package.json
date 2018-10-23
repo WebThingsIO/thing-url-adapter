@@ -1,7 +1,7 @@
 {
   "name": "thing-url-adapter",
   "display_name": "Web Thing",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Native web thing support",
   "author": "Mozilla IoT",
   "main": "index.js",
@@ -40,7 +40,8 @@
     "schema": {
       "type": "object",
       "required": [
-        "urls"
+        "urls",
+        "bluetoothEnabled"
       ],
       "properties": {
         "urls": {
@@ -48,6 +49,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "bluetoothEnabled": {
+          "type": "boolean"
         }
       }
     }
