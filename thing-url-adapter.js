@@ -665,8 +665,7 @@ function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
     return;
   }
 
-  if (typeof manifest.moziot.config.bluetoothEnabled === 'undefined' ||
-      manifest.moziot.config.bluetoothEnabled) {
+  if (manifest.moziot.config.bluetoothEnabled) {
     try {
       EddystoneBeaconScanner = require('eddystone-beacon-scanner');
       startEddystoneDiscovery(adapter);
