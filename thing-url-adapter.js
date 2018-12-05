@@ -102,7 +102,25 @@ class ThingURLDevice extends Device {
 
     for (const propertyName in description.properties) {
       const propertyDescription = description.properties[propertyName];
-      const propertyUrl = this.baseUrl + propertyDescription.href;
+
+      let propertyUrl;
+      if (propertyDescription.hasOwnProperty('links')) {
+        for (const link of propertyDescription.links) {
+          if (!link.rel || link.rel === 'property') {
+            propertyUrl = this.baseUrl + link.href;
+            break;
+          }
+        }
+      }
+
+      if (!propertyUrl) {
+        if (!propertyDescription.href) {
+          continue;
+        }
+
+        propertyUrl = this.baseUrl + propertyDescription.href;
+      }
+
       this.propertyPromises.push(
         fetch(propertyUrl, {
           headers: {
