@@ -61,12 +61,12 @@
     }
   },
   "dependencies": {
+    "@abandonware/eddystone-beacon-scanner": "^3.0.1-1",
     "dnssd": "^0.4.1",
-    "eddystone-beacon-scanner": "^3.0.0",
     "node-fetch": "^2.3.0",
     "ws": "^6.1.2"
   },
   "devDependencies": {
-    "eslint": "^5.9.0"
+    "eslint": "^5.10.0"
   }
 }
