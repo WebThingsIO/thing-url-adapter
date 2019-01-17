@@ -86,18 +86,32 @@ class ThingURLDevice extends Device {
     this.propertyPromises = [];
     this.ws = null;
     this.requestedActions = new Map();
-    this.baseUrl = new URL(url).origin;
+    this.baseHref = new URL(url).origin;
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.updateInterval = 5000;
     this.closingWs = false;
 
     for (const actionName in description.actions) {
-      this.addAction(actionName, description.actions[actionName]);
+      const action = description.actions[actionName];
+      if (action.hasOwnProperty('links')) {
+        action.links = action.links.map((l) => {
+          l.proxy = true;
+          return l;
+        });
+      }
+      this.addAction(actionName, action);
     }
 
     for (const eventName in description.events) {
-      this.addEvent(eventName, description.events[eventName]);
+      const event = description.events[eventName];
+      if (event.hasOwnProperty('links')) {
+        event.links = event.links.map((l) => {
+          l.proxy = true;
+          return l;
+        });
+      }
+      this.addEvent(eventName, event);
     }
 
     for (const propertyName in description.properties) {
@@ -107,7 +121,7 @@ class ThingURLDevice extends Device {
       if (propertyDescription.hasOwnProperty('links')) {
         for (const link of propertyDescription.links) {
           if (!link.rel || link.rel === 'property') {
-            propertyUrl = this.baseUrl + link.href;
+            propertyUrl = this.baseHref + link.href;
             break;
           }
         }
@@ -118,7 +132,7 @@ class ThingURLDevice extends Device {
           continue;
         }
 
-        propertyUrl = this.baseUrl + propertyDescription.href;
+        propertyUrl = this.baseHref + propertyDescription.href;
       }
 
       this.propertyPromises.push(
@@ -130,34 +144,40 @@ class ThingURLDevice extends Device {
           return res.json();
         }).then((res) => {
           propertyDescription.value = res[propertyName];
+          if (propertyDescription.hasOwnProperty('links')) {
+            propertyDescription.links = propertyDescription.links.map((l) => {
+              l.proxy = true;
+              return l;
+            });
+          }
           const property = new ThingURLProperty(
             this, propertyName, propertyUrl, propertyDescription);
           this.properties.set(propertyName, property);
         }).catch((e) => {
           console.log(`Failed to connect to ${propertyUrl}: ${e}`);
-        }));
+        })
+      );
     }
 
     // If a websocket endpoint exists, connect to it.
     if (description.hasOwnProperty('links')) {
       for (const link of description.links) {
         if (link.rel === 'actions') {
-          this.actionsUrl = this.baseUrl + link.href;
+          this.actionsUrl = this.baseHref + link.href;
         } else if (link.rel === 'events') {
-          this.eventsUrl = this.baseUrl + link.href;
+          this.eventsUrl = this.baseHref + link.href;
+        } else if (link.rel === 'properties') {
+          // pass
         } else if (link.rel === 'alternate') {
           if (link.mediaType === 'text/html') {
-            if (link.href.startsWith('http://') ||
-                link.href.startsWith('https://')) {
-              this.uiHref = link.href;
-            } else {
-              this.uiHref = `${this.baseUrl}${link.href}`;
-            }
+            link.proxy = true;
           } else if (link.href.startsWith('ws://') ||
                      link.href.startsWith('wss://')) {
             this.wsUrl = link.href;
             this.createWebsocket();
           }
+        } else {
+          link.proxy = true;
         }
       }
     }
@@ -473,8 +493,8 @@ class ThingURLAdapter extends Adapter {
     for (const thingDescription of things) {
       let thingUrl = url;
       if (thingDescription.hasOwnProperty('href')) {
-        const baseUrl = new URL(url).origin;
-        thingUrl = baseUrl + thingDescription.href;
+        const baseHref = new URL(url).origin;
+        thingUrl = baseHref + thingDescription.href;
       }
 
       const id = thingUrl.replace(/[:/]/g, '-');
