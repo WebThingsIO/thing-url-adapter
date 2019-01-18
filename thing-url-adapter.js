@@ -96,7 +96,9 @@ class ThingURLDevice extends Device {
       const action = description.actions[actionName];
       if (action.hasOwnProperty('links')) {
         action.links = action.links.map((l) => {
-          l.proxy = true;
+          if (!l.href.startsWith('http://') && !l.href.startsWith('https://')) {
+            l.proxy = true;
+          }
           return l;
         });
       }
@@ -107,7 +109,9 @@ class ThingURLDevice extends Device {
       const event = description.events[eventName];
       if (event.hasOwnProperty('links')) {
         event.links = event.links.map((l) => {
-          l.proxy = true;
+          if (!l.href.startsWith('http://') && !l.href.startsWith('https://')) {
+            l.proxy = true;
+          }
           return l;
         });
       }
@@ -146,7 +150,10 @@ class ThingURLDevice extends Device {
           propertyDescription.value = res[propertyName];
           if (propertyDescription.hasOwnProperty('links')) {
             propertyDescription.links = propertyDescription.links.map((l) => {
-              l.proxy = true;
+              if (!l.href.startsWith('http://') &&
+                  !l.href.startsWith('https://')) {
+                l.proxy = true;
+              }
               return l;
             });
           }
@@ -170,14 +177,24 @@ class ThingURLDevice extends Device {
           // pass
         } else if (link.rel === 'alternate') {
           if (link.mediaType === 'text/html') {
-            link.proxy = true;
+            if (!link.href.startsWith('http://') &&
+                !link.href.startsWith('https://')) {
+              link.proxy = true;
+            }
+            this.links.push(link);
           } else if (link.href.startsWith('ws://') ||
                      link.href.startsWith('wss://')) {
             this.wsUrl = link.href;
             this.createWebsocket();
+          } else {
+            this.links.push(link);
           }
         } else {
-          link.proxy = true;
+          if (!link.href.startsWith('http://') &&
+              !link.href.startsWith('https://')) {
+            link.proxy = true;
+          }
+          this.links.push(link);
         }
       }
     }
