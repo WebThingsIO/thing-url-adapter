@@ -46,6 +46,16 @@ class ThingURLProperty extends Property {
    * the value passed in.
    */
   setValue(value) {
+    if (this.device.ws && this.device.ws.readyState === WebSocket.OPEN) {
+      const msg = {
+        messageType: Constants.SET_PROPERTY,
+        data: {[this.name]: value},
+      };
+
+      this.device.ws.send(JSON.stringify(msg));
+      return Promise.resolve(value);
+    }
+
     return fetch(this.url, {
       method: 'PUT',
       headers: {
