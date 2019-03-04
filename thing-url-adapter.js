@@ -46,26 +46,36 @@ class ThingURLProperty extends Property {
    * the value passed in.
    */
   setValue(value) {
-    return fetch(this.url, {
-      method: 'PUT',
-      headers: {
+    if (this.device.ws && this.device.ws.readyState === WebSocket.OPEN) {
+          const msg = {
+            messageType: Constants.SET_PROPERTY,
+            data: {[this.name]: value},
+          };
+
+          this.device.ws.send(JSON.stringify(msg));
+      return Promise.resolve(value);
+    } else {
+      return fetch(this.url, {
+        method: 'PUT',
+        headers: {
         'Content-type': 'application/json',
         Accept: 'application/json',
-      },
-      body: JSON.stringify({
+        },
+        body: JSON.stringify({
         [this.name]: value,
-      }),
-    }).then((res) => {
-      return res.json();
-    }).then((response) => {
-      const updatedValue = response[this.name];
-      this.setCachedValue(updatedValue);
-      this.device.notifyPropertyChanged(this);
-      return updatedValue;
-    }).catch((e) => {
-      console.log(`Failed to set ${this.name}: ${e}`);
-      return this.value;
-    });
+        }),
+      }).then((res) => {
+        return res.json();
+      }).then((response) => {
+        const updatedValue = response[this.name];
+        this.setCachedValue(updatedValue);
+        this.device.notifyPropertyChanged(this);
+        return updatedValue;
+      }).catch((e) => {
+        console.log(`Failed to set ${this.name}: ${e}`);
+        return this.value;
+      });
+    }
   }
 }
 
