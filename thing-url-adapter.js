@@ -732,7 +732,7 @@ function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
 
   if (manifest.moziot.config.bluetoothEnabled) {
     try {
-      EddystoneBeaconScanner = require('eddystone-beacon-scanner');
+      EddystoneBeaconScanner = require('@abandonware/eddystone-beacon-scanner');
       startEddystoneDiscovery(adapter);
     } catch (e) {
       console.warn('EddystoneBeaconScanner unsupported in current environment:',
