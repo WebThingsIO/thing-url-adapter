@@ -15,8 +15,6 @@ const fs = require('fs');
 const {URL} = require('url');
 const WebSocket = require('ws');
 
-let EddystoneBeaconScanner = null;
-
 const {
   Adapter,
   Constants,
@@ -626,10 +624,6 @@ class ThingURLAdapter extends Adapter {
   }
 
   unload() {
-    if (EddystoneBeaconScanner) {
-      EddystoneBeaconScanner.stopScanning();
-    }
-
     if (webthingBrowser) {
       webthingBrowser.stop();
     }
@@ -648,20 +642,6 @@ class ThingURLAdapter extends Adapter {
 
     return super.unload();
   }
-}
-
-function startEddystoneDiscovery(adapter) {
-  if (!EddystoneBeaconScanner) {
-    return;
-  }
-  console.log('Starting Eddystone discovery');
-
-  EddystoneBeaconScanner.on('found', (beacon) => {
-    if (beacon.type === 'url') {
-      adapter.loadThing(beacon.url);
-    }
-  });
-  EddystoneBeaconScanner.startScanning();
 }
 
 function startDNSDiscovery(adapter) {
@@ -714,33 +694,6 @@ function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
   }
 
   startDNSDiscovery(adapter);
-
-  // Skip starting Eddystone discovery inside Docker/LXC containers, as it will
-  // segfault.
-  let procData;
-  try {
-    fs.readFileSync('/proc/1/cgroup', 'utf8');
-  } catch (_e) {
-    procData = '';
-  }
-
-  if (fs.existsSync('/.dockerenv') ||
-      (procData && (procData.indexOf(':/docker/') > 0 ||
-                    procData.indexOf(':/lxc/') > 0))) {
-    return;
-  }
-
-  if (manifest.moziot.config.bluetoothEnabled) {
-    try {
-      EddystoneBeaconScanner = require('@abandonware/eddystone-beacon-scanner');
-      startEddystoneDiscovery(adapter);
-    } catch (e) {
-      console.warn('EddystoneBeaconScanner unsupported in current environment:',
-                   e);
-    }
-  } else {
-    console.log('Disabling bluetooth scanning');
-  }
 }
 
 module.exports = loadThingURLAdapter;

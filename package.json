@@ -1,7 +1,7 @@
 {
   "name": "thing-url-adapter",
   "display_name": "Web Thing",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "description": "Native web thing support",
   "author": "Mozilla IoT",
   "main": "index.js",
@@ -38,14 +38,12 @@
     "plugin": true,
     "exec": "{nodeLoader} {path}",
     "config": {
-      "urls": [],
-      "bluetoothEnabled": false
+      "urls": []
     },
     "schema": {
       "type": "object",
       "required": [
-        "urls",
-        "bluetoothEnabled"
+        "urls"
       ],
       "properties": {
         "urls": {
@@ -53,16 +51,12 @@
           "items": {
             "type": "string"
           }
-        },
-        "bluetoothEnabled": {
-          "type": "boolean"
         }
       }
     }
   },
   "dependencies": {
     "dnssd": "^0.4.1",
-    "@abandonware/eddystone-beacon-scanner": "^3.0.1-1",
     "node-fetch": "^2.3.0",
     "ws": "^6.2.1"
   },
