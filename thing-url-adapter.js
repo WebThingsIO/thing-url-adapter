@@ -97,7 +97,7 @@ class ThingURLDevice extends Device {
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.updateInterval = 5000;
-    this.closingWs = false;
+    this.closing = false;
 
     for (const actionName in description.actions) {
       const action = description.actions[actionName];
@@ -213,9 +213,8 @@ class ThingURLDevice extends Device {
   }
 
   closeWebsocket() {
+    this.closing = true;
     if (this.ws !== null) {
-      this.closingWs = true;
-
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.close();
       }
@@ -227,7 +226,7 @@ class ThingURLDevice extends Device {
   }
 
   createWebsocket() {
-    if (this.closingWs) {
+    if (this.closing) {
       return;
     }
 
@@ -316,10 +315,14 @@ class ThingURLDevice extends Device {
     this.ws.on('error', cleanupAndReopen);
   }
 
-  poll() {
+  async poll() {
+    if (this.closing) {
+      return;
+    }
+
     // Update properties
-    this.properties.forEach((prop) => {
-      fetch(prop.url, {
+    await Promise.all(Array.from(this.properties.values()).map((prop) => {
+      return fetch(prop.url, {
         headers: {
           Accept: 'application/json',
         },
@@ -336,11 +339,11 @@ class ThingURLDevice extends Device {
       }).catch((e) => {
         console.log(`Failed to connect to ${prop.url}: ${e}`);
       });
-    });
+    }));
 
     // Check for new actions
     if (this.actionsUrl !== null) {
-      fetch(this.actionsUrl, {
+      await fetch(this.actionsUrl, {
         headers: {
           Accept: 'application/json',
         },
@@ -367,7 +370,7 @@ class ThingURLDevice extends Device {
 
     // Check for new events
     if (this.eventsUrl !== null) {
-      fetch(this.eventsUrl, {
+      await fetch(this.eventsUrl, {
         headers: {
           Accept: 'application/json',
         },
