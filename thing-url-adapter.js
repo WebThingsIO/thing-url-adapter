@@ -11,7 +11,6 @@
 const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
-const fs = require('fs');
 const {URL} = require('url');
 const WebSocket = require('ws');
 
