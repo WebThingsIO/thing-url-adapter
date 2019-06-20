@@ -79,7 +79,7 @@ class ThingURLProperty extends Property {
 class ThingURLDevice extends Device {
   constructor(adapter, id, url, description, mdnsUrl) {
     super(adapter, id);
-    this.name = description.name;
+    this.title = this.name = description.title || description.name;
     this.type = description.type;
     this['@context'] =
       description['@context'] || 'https://iot.mozilla.org/schemas';
