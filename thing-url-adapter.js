@@ -283,22 +283,7 @@ class ThingURLDevice extends Device {
           case Constants.EVENT: {
             const eventName = Object.keys(msg.data)[0];
             const event = msg.data[eventName];
-            const eventId = (event.data && event.data.hasOwnProperty('id')) ?
-              event.data.id :
-              `${eventName}-${event.timestamp}`;
-
-            if (!this.notifiedEvents.has(eventId)) {
-              if (!event.hasOwnProperty('timestamp')) {
-                event.timestamp = new Date().toISOString();
-              }
-              this.notifiedEvents.add(eventId);
-              const e = new Event(this,
-                                  eventName,
-                                  event.data || null);
-              e.timestamp = event.timestamp;
-
-              this.eventNotify(e);
-            }
+            this.createEvent(eventName, event);
             break;
           }
         }
@@ -385,20 +370,7 @@ class ThingURLDevice extends Device {
         for (let event of events) {
           const eventName = Object.keys(event)[0];
           event = event[eventName];
-          const eventId = (event.data && event.data.hasOwnProperty('id')) ?
-            event.data.id :
-            `${eventName}-${event.timestamp}`;
-
-          if (!this.notifiedEvents.has(eventId)) {
-            if (!event.hasOwnProperty('timestamp')) {
-              event.timestamp = new Date().toISOString();
-            }
-            this.notifiedEvents.add(eventId);
-            const e = new Event(this, eventName, event.data || null);
-            e.timestamp = event.timestamp;
-
-            this.eventNotify(e);
-          }
+          this.createEvent(eventName, event);
         }
       }).catch((e) => {
         console.log(`Failed to fetch events list: ${e}`);
@@ -409,6 +381,26 @@ class ThingURLDevice extends Device {
       clearTimeout(this.scheduledUpdate);
     }
     this.scheduledUpdate = setTimeout(() => this.poll(), this.updateInterval);
+  }
+
+  createEvent(eventName, event) {
+    const eventId = (event.data && event.data.hasOwnProperty('id')) ?
+      event.data.id :
+      `${eventName}-${event.timestamp}`;
+
+    if (this.notifiedEvents.has(eventId)) {
+      return;
+    }
+    if (!event.hasOwnProperty('timestamp')) {
+      event.timestamp = new Date().toISOString();
+    }
+    this.notifiedEvents.add(eventId);
+    const e = new Event(this,
+                        eventName,
+                        event.data || null);
+    e.timestamp = event.timestamp;
+
+    this.eventNotify(e);
   }
 
   performAction(action) {
