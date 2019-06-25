@@ -282,17 +282,22 @@ class ThingURLDevice extends Device {
           }
           case Constants.EVENT: {
             const eventName = Object.keys(msg.data)[0];
-            const eventId =
-              `${eventName}-${msg.data[eventName].timestamp}`;
+            const event = msg.data[eventName];
+            const eventId = (event.data && event.data.hasOwnProperty('id')) ?
+              event.data.id :
+              `${eventName}-${event.timestamp}`;
 
             if (!this.notifiedEvents.has(eventId)) {
+              if (!event.hasOwnProperty('timestamp')) {
+                event.timestamp = new Date().toISOString();
+              }
               this.notifiedEvents.add(eventId);
-              const event = new Event(this,
-                                      eventName,
-                                      msg.data[eventName].data || null);
-              event.timestamp = msg.data[eventName].timestamp;
+              const e = new Event(this,
+                                  eventName,
+                                  event.data || null);
+              e.timestamp = event.timestamp;
 
-              this.eventNotify(event);
+              this.eventNotify(e);
             }
             break;
           }
@@ -380,9 +385,14 @@ class ThingURLDevice extends Device {
         for (let event of events) {
           const eventName = Object.keys(event)[0];
           event = event[eventName];
-          const eventId = `${eventName}-${event.timestamp}`;
+          const eventId = (event.data && event.data.hasOwnProperty('id')) ?
+            event.data.id :
+            `${eventName}-${event.timestamp}`;
 
           if (!this.notifiedEvents.has(eventId)) {
+            if (!event.hasOwnProperty('timestamp')) {
+              event.timestamp = new Date().toISOString();
+            }
             this.notifiedEvents.add(eventId);
             const e = new Event(this, eventName, event.data || null);
             e.timestamp = event.timestamp;
