@@ -11,12 +11,12 @@
 const crypto = require('crypto');
 const dnssd = require('dnssd');
 const fetch = require('node-fetch');
+const manifest = require('./manifest.json');
 const {URL} = require('url');
 const WebSocket = require('ws');
 
 const {
   Adapter,
-  Constants,
   Database,
   Device,
   Event,
@@ -26,6 +26,17 @@ const {
 let webthingBrowser;
 let subtypeBrowser;
 let httpBrowser;
+
+const ACTION_STATUS = 'actionStatus';
+const ADD_EVENT_SUBSCRIPTION = 'addEventSubscription';
+const EVENT = 'event';
+const PROPERTY_STATUS = 'propertyStatus';
+const SET_PROPERTY = 'setProperty';
+
+const PING_INTERVAL = 30 * 1000;
+const POLL_INTERVAL = 5 * 1000;
+const WS_INITIAL_BACKOFF = 1000;
+const WS_MAX_BACKOFF = 30 * 1000;
 
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
@@ -45,7 +56,7 @@ class ThingURLProperty extends Property {
   setValue(value) {
     if (this.device.ws && this.device.ws.readyState === WebSocket.OPEN) {
       const msg = {
-        messageType: Constants.SET_PROPERTY,
+        messageType: SET_PROPERTY,
         data: {[this.name]: value},
       };
 
@@ -92,11 +103,12 @@ class ThingURLDevice extends Device {
     this.description = description.description;
     this.propertyPromises = [];
     this.ws = null;
+    this.wsBackoff = WS_INITIAL_BACKOFF;
+    this.pingInterval = null;
     this.requestedActions = new Map();
     this.baseHref = new URL(url).origin;
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
-    this.updateInterval = 5000;
     this.closing = false;
 
     for (const actionName in description.actions) {
@@ -233,10 +245,12 @@ class ThingURLDevice extends Device {
     this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
+      this.wsBackoff = WS_INITIAL_BACKOFF;
+
       if (this.events.size > 0) {
         // Subscribe to all events
         const msg = {
-          messageType: Constants.ADD_EVENT_SUBSCRIPTION,
+          messageType: ADD_EVENT_SUBSCRIPTION,
           data: {},
         };
 
@@ -246,6 +260,10 @@ class ThingURLDevice extends Device {
 
         this.ws.send(JSON.stringify(msg));
       }
+
+      this.pingInterval = setInterval(() => {
+        this.ws.ping();
+      }, PING_INTERVAL);
     });
 
     this.ws.on('message', (data) => {
@@ -253,7 +271,7 @@ class ThingURLDevice extends Device {
         const msg = JSON.parse(data);
 
         switch (msg.messageType) {
-          case Constants.PROPERTY_STATUS: {
+          case PROPERTY_STATUS: {
             const propertyName = Object.keys(msg.data)[0];
             const property = this.findProperty(propertyName);
             if (property) {
@@ -267,7 +285,7 @@ class ThingURLDevice extends Device {
             }
             break;
           }
-          case Constants.ACTION_STATUS: {
+          case ACTION_STATUS: {
             const actionName = Object.keys(msg.data)[0];
             const action = msg.data[actionName];
             const requestedAction =
@@ -280,7 +298,7 @@ class ThingURLDevice extends Device {
             }
             break;
           }
-          case Constants.EVENT: {
+          case EVENT: {
             const eventName = Object.keys(msg.data)[0];
             const event = msg.data[eventName];
             this.createEvent(eventName, event);
@@ -293,12 +311,20 @@ class ThingURLDevice extends Device {
     });
 
     const cleanupAndReopen = () => {
+      if (this.pingInterval) {
+        clearInterval(this.pingInterval);
+        this.pingInterval = null;
+      }
+
       this.ws.removeAllListeners('close');
       this.ws.removeAllListeners('error');
       this.ws.close();
       this.ws = null;
 
-      this.createWebsocket();
+      setTimeout(() => {
+        this.wsBackoff = Math.min(this.wsBackoff * 2, WS_MAX_BACKOFF);
+        this.createWebsocket();
+      }, this.wsBackoff);
     };
 
     this.ws.on('close', cleanupAndReopen);
@@ -380,7 +406,7 @@ class ThingURLDevice extends Device {
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
     }
-    this.scheduledUpdate = setTimeout(() => this.poll(), this.updateInterval);
+    this.scheduledUpdate = setTimeout(() => this.poll(), POLL_INTERVAL);
   }
 
   createEvent(eventName, event) {
@@ -451,8 +477,8 @@ class ThingURLDevice extends Device {
 }
 
 class ThingURLAdapter extends Adapter {
-  constructor(addonManager, packageName) {
-    super(addonManager, packageName, packageName);
+  constructor(addonManager) {
+    super(addonManager, manifest.id, manifest.id);
     addonManager.addAdapter(this);
     this.knownUrls = {};
   }
@@ -690,14 +716,19 @@ function startDNSDiscovery(adapter) {
   httpBrowser.start();
 }
 
-function loadThingURLAdapter(addonManager, manifest, _errorCallback) {
-  const adapter = new ThingURLAdapter(addonManager, manifest.name);
+function loadThingURLAdapter(addonManager) {
+  const adapter = new ThingURLAdapter(addonManager);
 
-  for (const url of manifest.moziot.config.urls) {
-    adapter.loadThing(url);
-  }
+  const db = new Database(manifest.id);
+  db.open().then(() => {
+    return db.loadConfig();
+  }).then((config) => {
+    for (const url of config.urls) {
+      adapter.loadThing(url);
+    }
 
-  startDNSDiscovery(adapter);
+    startDNSDiscovery(adapter);
+  }).catch(console.error);
 }
 
 module.exports = loadThingURLAdapter;
