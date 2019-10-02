@@ -1,0 +1,38 @@
+{
+  "author": "Mozilla IoT",
+  "description": "Native web thing support",
+  "gateway_specific_settings": {
+    "webthings": {
+      "exec": "{nodeLoader} {path}",
+      "primary_type": "adapter",
+      "strict_max_version": "*",
+      "strict_min_version": "0.10.0"
+    }
+  },
+  "homepage_url": "https://github.com/mozilla-iot/thing-url-adapter",
+  "id": "thing-url-adapter",
+  "license": "MPL-2.0",
+  "manifest_version": 1,
+  "name": "Web Thing",
+  "options": {
+    "default": {
+      "urls": []
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "urls"
+      ],
+      "properties": {
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "short_name": "Web Thing",
+  "version": "0.4.0"
+}
