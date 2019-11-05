@@ -6,7 +6,8 @@
       "exec": "{nodeLoader} {path}",
       "primary_type": "adapter",
       "strict_max_version": "*",
-      "strict_min_version": "0.10.0"
+      "strict_min_version": "0.10.0",
+      "enabled": true
     }
   },
   "homepage_url": "https://github.com/mozilla-iot/thing-url-adapter",
@@ -34,5 +35,5 @@
     }
   },
   "short_name": "Web Thing",
-  "version": "0.4.0"
+  "version": "0.4.1"
 }
