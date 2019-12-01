@@ -405,8 +405,8 @@ class ThingURLDevice extends Device {
 
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
-    }
-    this.scheduledUpdate = setTimeout(() => this.poll(), POLL_INTERVAL);
+    }    
+    this.scheduledUpdate = setTimeout(() => this.poll(), this.adapter.poolInterval || POLL_INTERVAL);
   }
 
   createEvent(eventName, event) {
@@ -481,6 +481,11 @@ class ThingURLAdapter extends Adapter {
     super(addonManager, manifest.id, manifest.id);
     addonManager.addAdapter(this);
     this.knownUrls = {};
+
+    const db = new Database(this.packageName);
+    await db.open();
+    const config = await db.loadConfig();
+    this.poolInterval = config.poolInterval || POLL_INTERVAL;
   }
 
   async loadThing(url, retryCounter) {

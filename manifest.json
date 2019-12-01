@@ -17,12 +17,14 @@
   "name": "Web Thing",
   "options": {
     "default": {
-      "urls": []
+      "urls": [],
+      "poolInterval": 5000
     },
     "schema": {
       "type": "object",
       "required": [
-        "urls"
+        "urls",
+        "poolInterval"
       ],
       "properties": {
         "urls": {
@@ -30,6 +32,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "poolInterval": {
+          "type": "number"
         }
       }
     }
