@@ -482,6 +482,10 @@ class ThingURLAdapter extends Adapter {
     addonManager.addAdapter(this);
     this.knownUrls = {};
 
+    this.loadPoolInterval();
+  }
+
+  async loadPoolInterval() {
     const db = new Database(this.packageName);
     await db.open();
     const config = await db.loadConfig();
