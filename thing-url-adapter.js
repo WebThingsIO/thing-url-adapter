@@ -483,15 +483,7 @@ class ThingURLAdapter extends Adapter {
     super(addonManager, manifest.id, manifest.id);
     addonManager.addAdapter(this);
     this.knownUrls = {};
-
-    this.loadPoolInterval();
-  }
-
-  async loadPoolInterval() {
-    const db = new Database(this.packageName);
-    await db.open();
-    const config = await db.loadConfig();
-    this.poolInterval = config.poolInterval || POLL_INTERVAL;
+    this.poolInterval = POLL_INTERVAL;
   }
 
   async loadThing(url, retryCounter) {
@@ -737,7 +729,7 @@ function loadThingURLAdapter(addonManager) {
     for (const url of config.urls) {
       adapter.loadThing(url);
     }
-
+    adapter.poolInterval = config.poolInterval;
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }
