@@ -34,6 +34,7 @@
           }
         },
         "poolInterval": {
+          "description": "The interval of updating(pooling) properties from webthing",
           "type": "number"
         }
       }
