@@ -405,8 +405,10 @@ class ThingURLDevice extends Device {
 
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
-    }    
-    this.scheduledUpdate = setTimeout(() => this.poll(), this.adapter.poolInterval || POLL_INTERVAL);
+    }
+    this.scheduledUpdate = setTimeout(
+      () => this.poll(),
+      this.adapter.poolInterval || POLL_INTERVAL);
   }
 
   createEvent(eventName, event) {
