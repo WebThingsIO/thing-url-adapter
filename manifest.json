@@ -18,13 +18,13 @@
   "options": {
     "default": {
       "urls": [],
-      "poolInterval": 5000
+      "pollInterval": 5000
     },
     "schema": {
       "type": "object",
       "required": [
         "urls",
-        "poolInterval"
+        "pollInterval"
       ],
       "properties": {
         "urls": {
@@ -33,8 +33,8 @@
             "type": "string"
           }
         },
-        "poolInterval": {
-          "description": "The interval, in milliseconds, at which to poll property values.",
+        "pollInterval": {
+          "description": "The interval, in seconds, at which to poll property values.",
           "type": "number"
         }
       }
