@@ -18,7 +18,7 @@
   "options": {
     "default": {
       "urls": [],
-      "pollInterval": 5000
+      "pollInterval": 5
     },
     "schema": {
       "type": "object",
