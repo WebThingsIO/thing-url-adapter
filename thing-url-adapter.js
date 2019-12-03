@@ -406,7 +406,10 @@ class ThingURLDevice extends Device {
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
     }
-    this.scheduledUpdate = setTimeout(() => this.poll(), POLL_INTERVAL);
+    this.scheduledUpdate = setTimeout(
+      () => this.poll(),
+      this.adapter.pollInterval
+    );
   }
 
   createEvent(eventName, event) {
@@ -481,6 +484,7 @@ class ThingURLAdapter extends Adapter {
     super(addonManager, manifest.id, manifest.id);
     addonManager.addAdapter(this);
     this.knownUrls = {};
+    this.pollInterval = POLL_INTERVAL;
   }
 
   async loadThing(url, retryCounter) {
@@ -723,6 +727,10 @@ function loadThingURLAdapter(addonManager) {
   db.open().then(() => {
     return db.loadConfig();
   }).then((config) => {
+    if (typeof config.pollInterval === 'number') {
+      adapter.pollInterval = config.pollInterval * 1000;
+    }
+
     for (const url of config.urls) {
       adapter.loadThing(url);
     }

@@ -40,12 +40,14 @@
     "plugin": true,
     "exec": "{nodeLoader} {path}",
     "config": {
-      "urls": []
+      "urls": [],
+      "pollInterval": 5
     },
     "schema": {
       "type": "object",
       "required": [
-        "urls"
+        "urls",
+        "pollInterval"
       ],
       "properties": {
         "urls": {
@@ -53,6 +55,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "pollInterval": {
+          "description": "The interval, in seconds, at which to poll property values.",
+          "type": "number"
         }
       }
     }
