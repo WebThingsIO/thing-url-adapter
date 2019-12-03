@@ -408,7 +408,7 @@ class ThingURLDevice extends Device {
     }
     this.scheduledUpdate = setTimeout(
       () => this.poll(),
-      this.adapter.pollInterval || POLL_INTERVAL);
+      this.adapter.pollInterval);
   }
 
   createEvent(eventName, event) {
@@ -726,10 +726,12 @@ function loadThingURLAdapter(addonManager) {
   db.open().then(() => {
     return db.loadConfig();
   }).then((config) => {
+    if (typeof config.pollInterval === 'number') {
+      adapter.pollInterval = config.pollInterval * 1000;
+    }
     for (const url of config.urls) {
       adapter.loadThing(url);
-    }
-    adapter.pollInterval = config.pollInterval * 1000;
+    }    
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }
