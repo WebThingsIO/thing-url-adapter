@@ -731,7 +731,7 @@ function loadThingURLAdapter(addonManager) {
     }
     for (const url of config.urls) {
       adapter.loadThing(url);
-    }    
+    }
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }
