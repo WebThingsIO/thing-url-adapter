@@ -729,9 +729,11 @@ function loadThingURLAdapter(addonManager) {
     if (typeof config.pollInterval === 'number') {
       adapter.pollInterval = config.pollInterval * 1000;
     }
+
     for (const url of config.urls) {
       adapter.loadThing(url);
     }
+
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }
