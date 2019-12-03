@@ -40,7 +40,8 @@
     "plugin": true,
     "exec": "{nodeLoader} {path}",
     "config": {
-      "urls": []
+      "urls": [],
+      "pollInterval": 5
     },
     "schema": {
       "type": "object",
