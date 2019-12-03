@@ -408,7 +408,8 @@ class ThingURLDevice extends Device {
     }
     this.scheduledUpdate = setTimeout(
       () => this.poll(),
-      this.adapter.pollInterval);
+      this.adapter.pollInterval
+    );
   }
 
   createEvent(eventName, event) {
