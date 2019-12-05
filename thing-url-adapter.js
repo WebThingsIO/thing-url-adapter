@@ -61,6 +61,13 @@ class ThingURLProperty extends Property {
       };
 
       this.device.ws.send(JSON.stringify(msg));
+
+      // If the value is the same, we probably won't get a propertyStatus back
+      // via the WebSocket, so let's go ahead and notify now.
+      if (value === this.value) {
+        this.device.notifyPropertyChanged(this);
+      }
+
       return Promise.resolve(value);
     }
 
