@@ -211,7 +211,7 @@ class ThingURLDevice extends Device {
           } else if (link.href.startsWith('ws://') ||
                      link.href.startsWith('wss://')) {
             this.wsUrl = link.href;
-            this.createWebsocket();
+            this.createWebSocket();
           } else {
             this.links.push(link);
           }
@@ -231,20 +231,20 @@ class ThingURLDevice extends Device {
     }
   }
 
-  closeWebsocket() {
+  closeWebSocket() {
     this.closing = true;
     if (this.ws !== null) {
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.close();
       }
 
-      // Allow the cleanup code in createWebsocket to handle shutdown
+      // Allow the cleanup code in createWebSocket to handle shutdown
     } else if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
     }
   }
 
-  createWebsocket() {
+  createWebSocket() {
     if (this.closing) {
       return;
     }
@@ -330,7 +330,7 @@ class ThingURLDevice extends Device {
 
       setTimeout(() => {
         this.wsBackoff = Math.min(this.wsBackoff * 2, WS_MAX_BACKOFF);
-        this.createWebsocket();
+        this.createWebSocket();
       }, this.wsBackoff);
     };
 
@@ -580,7 +580,7 @@ class ThingURLAdapter extends Adapter {
     for (const id in this.devices) {
       const device = this.devices[id];
       if (device.mdnsUrl === url) {
-        device.closeWebsocket();
+        device.closeWebSocket();
         this.removeThing(device);
       }
     }
@@ -621,6 +621,7 @@ class ThingURLAdapter extends Adapter {
     return this.removeDeviceFromConfig(device).then(() => {
       if (this.devices.hasOwnProperty(device.id)) {
         this.handleDeviceRemoved(device);
+        device.closeWebSocket();
         return device;
       } else {
         throw new Error(`Device: ${device.id} not found.`);
@@ -678,7 +679,7 @@ class ThingURLAdapter extends Adapter {
     }
 
     for (const id in this.devices) {
-      this.devices[id].closeWebsocket();
+      this.devices[id].closeWebSocket();
     }
 
     return super.unload();
