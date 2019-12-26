@@ -279,36 +279,35 @@ class ThingURLDevice extends Device {
 
         switch (msg.messageType) {
           case PROPERTY_STATUS: {
-            const propertyName = Object.keys(msg.data)[0];
-            const property = this.findProperty(propertyName);
-            if (property) {
-              const newValue = msg.data[propertyName];
-              property.getValue().then((value) => {
-                if (value !== newValue) {
-                  property.setCachedValue(newValue);
-                  this.notifyPropertyChanged(property);
-                }
-              });
+            for (const [name, value] of Object.entries(msg.data)) {
+              const property = this.findProperty(name);
+              if (property) {
+                property.getValue().then((oldValue) => {
+                  if (value !== oldValue) {
+                    property.setCachedValue(value);
+                    this.notifyPropertyChanged(property);
+                  }
+                });
+              }
             }
             break;
           }
           case ACTION_STATUS: {
-            const actionName = Object.keys(msg.data)[0];
-            const action = msg.data[actionName];
-            const requestedAction =
-              this.requestedActions.get(action.href);
-            if (requestedAction) {
-              requestedAction.status = action.status;
-              requestedAction.timeRequested = action.timeRequested;
-              requestedAction.timeCompleted = action.timeCompleted;
-              this.actionNotify(requestedAction);
+            for (const action of Object.values(msg.data)) {
+              const requestedAction = this.requestedActions.get(action.href);
+              if (requestedAction) {
+                requestedAction.status = action.status;
+                requestedAction.timeRequested = action.timeRequested;
+                requestedAction.timeCompleted = action.timeCompleted;
+                this.actionNotify(requestedAction);
+              }
             }
             break;
           }
           case EVENT: {
-            const eventName = Object.keys(msg.data)[0];
-            const event = msg.data[eventName];
-            this.createEvent(eventName, event);
+            for (const [name, event] of Object.entries(msg.data)) {
+              this.createEvent(name, event);
+            }
             break;
           }
         }
