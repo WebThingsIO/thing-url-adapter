@@ -211,7 +211,6 @@ class ThingURLDevice extends Device {
           } else if (link.href.startsWith('ws://') ||
                      link.href.startsWith('wss://')) {
             this.wsUrl = link.href;
-            this.createWebSocket();
           } else {
             this.links.push(link);
           }
@@ -225,9 +224,26 @@ class ThingURLDevice extends Device {
       }
     }
 
-    // If there's no websocket endpoint, poll the device for updates.
-    if (!this.ws) {
-      Promise.all(this.propertyPromises).then(() => this.poll());
+    this.startReading();
+  }
+
+  startReading(now = false) {
+    // If this is a recent gateway version, we hold off on polling/opening the
+    // WebSocket until the user has actually saved the device.
+    if (Adapter.prototype.hasOwnProperty('handleDeviceSaved') && !now) {
+      return;
+    }
+
+    if (this.wsUrl) {
+      if (!this.ws) {
+        this.createWebSocket();
+      }
+    } else {
+      // If there's no websocket endpoint, poll the device for updates.
+      // eslint-disable-next-line no-lonely-if
+      if (!this.scheduledUpdate) {
+        Promise.all(this.propertyPromises).then(() => this.poll());
+      }
     }
   }
 
@@ -491,6 +507,7 @@ class ThingURLAdapter extends Adapter {
     super(addonManager, manifest.id, manifest.id);
     addonManager.addAdapter(this);
     this.knownUrls = {};
+    this.savedDevices = new Set();
     this.pollInterval = POLL_INTERVAL;
   }
 
@@ -568,7 +585,7 @@ class ThingURLAdapter extends Adapter {
         if (known) {
           continue;
         }
-        await this.removeThing(this.devices[id]);
+        await this.removeThing(this.devices[id], true);
       }
       await this.addDevice(id, thingUrl, thingDescription, url);
     }
@@ -581,7 +598,7 @@ class ThingURLAdapter extends Adapter {
       const device = this.devices[id];
       if (device.mdnsUrl === url) {
         device.closeWebSocket();
-        this.removeThing(device);
+        this.removeThing(device, true);
       }
     }
 
@@ -605,6 +622,11 @@ class ThingURLAdapter extends Adapter {
           new ThingURLDevice(this, deviceId, deviceURL, description, mdnsUrl);
         Promise.all(device.propertyPromises).then(() => {
           this.handleDeviceAdded(device);
+
+          if (this.savedDevices.has(deviceId)) {
+            device.startReading(true);
+          }
+
           resolve(device);
         }).catch((e) => reject(e));
       }
@@ -612,13 +634,32 @@ class ThingURLAdapter extends Adapter {
   }
 
   /**
+   * Handle a user saving a device. Note that incoming devices may not be for
+   * this adapter.
+   *
+   * @param {string} deviceId - ID of the device
+   */
+  handleDeviceSaved(deviceId) {
+    this.savedDevices.add(deviceId);
+
+    if (this.devices.hasOwnProperty(deviceId)) {
+      this.devices[deviceId].startReading(true);
+    }
+  }
+
+  /**
    * Remove a ThingURLDevice from the ThingURLAdapter.
    *
    * @param {Object} device The device to remove.
+   * @param {boolean} internal Whether or not this is being called internally
    * @return {Promise} which resolves to the device removed.
    */
-  removeThing(device) {
+  removeThing(device, internal) {
     return this.removeDeviceFromConfig(device).then(() => {
+      if (!internal) {
+        this.savedDevices.delete(device.id);
+      }
+
       if (this.devices.hasOwnProperty(device.id)) {
         this.handleDeviceRemoved(device);
         device.closeWebSocket();
