@@ -268,6 +268,7 @@ class ThingURLDevice extends Device {
     this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
+      this.connectedNotify(true);
       this.wsBackoff = WS_INITIAL_BACKOFF;
 
       if (this.events.size > 0) {
@@ -333,6 +334,8 @@ class ThingURLDevice extends Device {
     });
 
     const cleanupAndReopen = () => {
+      this.connectedNotify(false);
+
       if (this.pingInterval) {
         clearInterval(this.pingInterval);
         this.pingInterval = null;
@@ -374,60 +377,65 @@ class ThingURLDevice extends Device {
             this.notifyPropertyChanged(prop);
           }
         });
-      }).catch((e) => {
-        console.log(`Failed to connect to ${prop.url}: ${e}`);
       });
-    }));
+    })).then(() => {
+      // Check for new actions
+      if (this.actionsUrl !== null) {
+        return fetch(this.actionsUrl, {
+          headers: {
+            Accept: 'application/json',
+          },
+        }).then((res) => {
+          return res.json();
+        }).then((actions) => {
+          for (let action of actions) {
+            const actionName = Object.keys(action)[0];
+            action = action[actionName];
+            const requestedAction =
+              this.requestedActions.get(action.href);
 
-    // Check for new actions
-    if (this.actionsUrl !== null) {
-      await fetch(this.actionsUrl, {
-        headers: {
-          Accept: 'application/json',
-        },
-      }).then((res) => {
-        return res.json();
-      }).then((actions) => {
-        for (let action of actions) {
-          const actionName = Object.keys(action)[0];
-          action = action[actionName];
-          const requestedAction =
-            this.requestedActions.get(action.href);
-
-          if (requestedAction && action.status !== requestedAction.status) {
-            requestedAction.status = action.status;
-            requestedAction.timeRequested = action.timeRequested;
-            requestedAction.timeCompleted = action.timeCompleted;
-            this.actionNotify(requestedAction);
+            if (requestedAction && action.status !== requestedAction.status) {
+              requestedAction.status = action.status;
+              requestedAction.timeRequested = action.timeRequested;
+              requestedAction.timeCompleted = action.timeCompleted;
+              this.actionNotify(requestedAction);
+            }
           }
-        }
-      }).catch((e) => {
-        console.log(`Failed to fetch actions list: ${e}`);
-      });
-    }
+        });
+      }
 
-    // Check for new events
-    if (this.eventsUrl !== null) {
-      await fetch(this.eventsUrl, {
-        headers: {
-          Accept: 'application/json',
-        },
-      }).then((res) => {
-        return res.json();
-      }).then((events) => {
-        for (let event of events) {
-          const eventName = Object.keys(event)[0];
-          event = event[eventName];
-          this.createEvent(eventName, event);
-        }
-      }).catch((e) => {
-        console.log(`Failed to fetch events list: ${e}`);
-      });
-    }
+      return Promise.resolve();
+    }).then(() => {
+      // Check for new events
+      if (this.eventsUrl !== null) {
+        return fetch(this.eventsUrl, {
+          headers: {
+            Accept: 'application/json',
+          },
+        }).then((res) => {
+          return res.json();
+        }).then((events) => {
+          for (let event of events) {
+            const eventName = Object.keys(event)[0];
+            event = event[eventName];
+            this.createEvent(eventName, event);
+          }
+        });
+      }
+
+      return Promise.resolve();
+    }).then(() => {
+      this.connectedNotify(true);
+      return Promise.resolve();
+    }).catch((e) => {
+      console.log(`Failed to poll device: ${e}`);
+      this.connectedNotify(false);
+    });
 
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
     }
+
     this.scheduledUpdate = setTimeout(
       () => this.poll(),
       this.adapter.pollInterval
