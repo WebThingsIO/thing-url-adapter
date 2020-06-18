@@ -741,11 +741,23 @@ function startDNSDiscovery(adapter) {
     new dnssd.Browser(new dnssd.ServiceType('_webthing._tcp'));
   webthingBrowser.on('serviceUp', (service) => {
     const host = service.host.replace(/\.$/, '');
-    adapter.loadThing(`http://${host}:${service.port}${service.txt.path}`);
+    let protocol = 'http';
+    if (service.txt.hasOwnProperty('tls') && service.txt.tls === '1') {
+      protocol = 'https';
+    }
+    adapter.loadThing(
+      `${protocol}://${host}:${service.port}${service.txt.path}`
+    );
   });
   webthingBrowser.on('serviceDown', (service) => {
     const host = service.host.replace(/\.$/, '');
-    adapter.unloadThing(`http://${host}:${service.port}${service.txt.path}`);
+    let protocol = 'http';
+    if (service.txt.hasOwnProperty('tls') && service.txt.tls === '1') {
+      protocol = 'https';
+    }
+    adapter.unloadThing(
+      `${protocol}://${host}:${service.port}${service.txt.path}`
+    );
   });
   webthingBrowser.start();
 
