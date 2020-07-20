@@ -1,19 +1,12 @@
 {
   "name": "thing-url-adapter",
-  "display_name": "Web Thing",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Native web thing support",
   "author": "Mozilla IoT",
   "main": "index.js",
   "scripts": {
     "lint": "eslint ."
   },
-  "keywords": [
-    "mozilla",
-    "iot",
-    "adapter",
-    "wot"
-  ],
   "homepage": "https://github.com/mozilla-iot/thing-url-adapter",
   "license": "MPL-2.0",
   "repository": {
@@ -31,38 +24,6 @@
     "manifest.json",
     "thing-url-adapter.js"
   ],
-  "moziot": {
-    "api": {
-      "min": 2,
-      "max": 2
-    },
-    "enabled": true,
-    "plugin": true,
-    "exec": "{nodeLoader} {path}",
-    "config": {
-      "urls": [],
-      "pollInterval": 5
-    },
-    "schema": {
-      "type": "object",
-      "required": [
-        "urls",
-        "pollInterval"
-      ],
-      "properties": {
-        "urls": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "pollInterval": {
-          "description": "The interval, in seconds, at which to poll property values.",
-          "type": "number"
-        }
-      }
-    }
-  },
   "dependencies": {
     "dnssd": "^0.4.1",
     "node-fetch": "^2.6.0",
@@ -70,6 +31,6 @@
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",
-    "eslint": "^7.4.0"
+    "eslint": "^7.5.0"
   }
 }
