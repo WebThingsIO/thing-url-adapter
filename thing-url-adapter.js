@@ -38,6 +38,17 @@ const POLL_INTERVAL = 5 * 1000;
 const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
+let jwt_auth; // Auth tokens to access things with
+function loadJwtAuth() {
+  try {
+    jwt_auth = require('./jwt_auth.json');
+    console.log(jwt_auth);
+  } catch (err) {
+    jwt_auth = {};
+    console.log('no jwt_auth.json file found');
+  }
+}
+
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
     super(device, name, propertyDescription);
@@ -71,12 +82,20 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
+    const header = {
+      'Content-type': 'application/json',
+      Accept: 'application/json',
+    };
+    // Check for an auth token in the jwt_auth object
+    for (const i in jwt_auth) {
+      if (this.url.includes(i)) {
+        header.Authorization = `Bearer ${jwt_auth[i]}`;
+        break;
+      }
+    }
     return fetch(this.url, {
       method: 'PUT',
-      headers: {
-        'Content-type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: header,
       body: JSON.stringify({
         [this.name]: value,
       }),
@@ -165,11 +184,19 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
+      const header = {
+        Accept: 'application/json',
+      };
+      // Check for an auth token in the jwt_auth object
+      for (const i in jwt_auth) {
+        if (propertyUrl.includes(i)) {
+          header.Authorization = `Bearer ${jwt_auth[i]}`;
+          break;
+        }
+      }
       this.propertyPromises.push(
         fetch(propertyUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: header,
         }).then((res) => {
           return res.json();
         }).then((res) => {
@@ -264,8 +291,20 @@ class ThingURLDevice extends Device {
     if (this.closing) {
       return;
     }
+    // if we have an entry for the wss url stub in jwt_auth
+    // add auth to query string
+    let auth = '';
+    for (const i in jwt_auth) {
+      if (this.wsUrl.includes(i)) {
+        auth = `?Authorization=Bearer ${jwt_auth[i]}`;
+        break;
+      }
+    }
+    // -- added '' and {} to get eslint to shut up
+    if (this.ws === null) {
+      this.ws = new WebSocket(`${this.wsUrl}${auth}`, '', {});
+    }
 
-    this.ws = new WebSocket(this.wsUrl);
 
     this.ws.on('open', () => {
       this.connectedNotify(true);
@@ -363,10 +402,18 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
+      const header = {
+        Accept: 'application/json',
+      };
+      // Check for an auth token in the jwt_auth object
+      for (const i in jwt_auth) {
+        if (prop.url.includes(i)) {
+          header.Authorization = `Bearer ${jwt_auth[i]}`;
+          break;
+        }
+      }
       return fetch(prop.url, {
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: header,
       }).then((res) => {
         return res.json();
       }).then((res) => {
@@ -381,10 +428,18 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
+        const header = {
+          Accept: 'application/json',
+        };
+        // Check for an auth token in the jwt_auth object
+        for (const i in jwt_auth) {
+          if (this.actionsUrl.includes(i)) {
+            header.Authorization = `Bearer ${jwt_auth[i]}`;
+            break;
+          }
+        }
         return fetch(this.actionsUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: header,
         }).then((res) => {
           return res.json();
         }).then((actions) => {
@@ -408,10 +463,19 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
+        const header = {
+          'Content-type': 'application/json',
+          Accept: 'application/json',
+        };
+        // Check for an auth token in the jwt_auth object
+        for (const i in jwt_auth) {
+          if (this.eventsUrl.includes(i)) {
+            header.Authorization = `Bearer ${jwt_auth[i]}`;
+            break;
+          }
+        }
         return fetch(this.eventsUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: header,
         }).then((res) => {
           return res.json();
         }).then((events) => {
@@ -464,13 +528,19 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-
+    const header = {
+      Accept: 'application/json',
+    };
+    // Check for an auth token in the jwt_auth object
+    for (const i in jwt_auth) {
+      if (this.actionsUrl.includes(i)) {
+        header.Authorization = `Bearer ${jwt_auth[i]}`;
+        break;
+      }
+    }
     return fetch(this.actionsUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: header,
       body: JSON.stringify({[action.name]: {input: action.input}}),
     }).then((res) => {
       return res.json();
@@ -488,11 +558,19 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
+        const header = {
+          Accept: 'application/json',
+        };
+        // Check for an auth token in the jwt_auth object
+        for (const i in jwt_auth) {
+          if (actionHref.includes(i)) {
+            header.Authorization = `Bearer ${jwt_auth[i]}`;
+            break;
+          }
+        }
         promise = fetch(actionHref, {
           method: 'DELETE',
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: header,
         }).catch((e) => {
           console.log(`Failed to cancel action: ${e}`);
         });
@@ -537,8 +615,16 @@ class ThingURLAdapter extends Adapter {
     }
 
     let res;
+    // Check for an auth token
+    const header = {Accept: 'application/json'};
+    for (const i in jwt_auth) {
+      if (url.includes(i)) {
+        header.Authorization = `Bearer ${jwt_auth[i]}`;
+        break;
+      }
+    }
     try {
-      res = await fetch(url, {headers: {Accept: 'application/json'}});
+      res = await fetch(url, {headers: header});
     } catch (e) {
       // Retry the connection at a 2 second interval up to 5 times.
       if (retryCounter >= 5) {
@@ -789,6 +875,8 @@ function startDNSDiscovery(adapter) {
 }
 
 function loadThingURLAdapter(addonManager) {
+  loadJwtAuth(); // Maybe this needs to be called before each access?
+  // in case a new jwt was set
   const adapter = new ThingURLAdapter(addonManager);
 
   const db = new Database(manifest.id);
