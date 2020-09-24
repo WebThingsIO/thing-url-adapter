@@ -8,16 +8,16 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
    * jwt support is disabled if no file found. 
    * A thing that requires a jwt but has none configured will show up as an undefined thing in the gateway.  
 
-   #####File format:
+   ##File format:
    `{
         "<hotsname>:<port>" : "<jwt-token>"
     }`
  
     Example: {"raspib.local:8888" : "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzb21lIjoicGF5b$"}
-   #####Compatibility:
+   ##Compatibility:
    Tested with the m2ag-labs fork of the [webthing-python](https://github.com/m2ag-labs/webthing-python) project.  
    
-   #####Installation:
+   ##Installation:
    * Remove the downloaded version of the webthings adapter. 
    * Clone this project into the .mozilla-iot/addons directory. 
    * run npm install in the thing-url-adapter directory.
