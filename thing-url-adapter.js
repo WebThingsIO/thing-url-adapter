@@ -39,14 +39,35 @@ const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
 let jwt_auth; // Auth tokens to access things with
+// gets called in loadThingURLAdapter
+// jwts can be generated with the code here :
+//
 function loadJwtAuth() {
   try {
-    jwt_auth = require('./jwt_auth.json');
+    jwt_auth = require('../../config/jwt_auth.json');
     console.log(jwt_auth);
   } catch (err) {
     jwt_auth = {};
     console.log('no jwt_auth.json file found');
   }
+}
+// This function checks the supplied url against keys
+// in the jwt_auth object.
+function getHeader(url, contentType = false) {
+  const header = {Accept: 'application/json'};
+  if (contentType) {
+    header['Content-type'] = 'application/json';
+  }
+  // Check for an auth token in the jwt_auth object
+  for (const i in jwt_auth) {
+    if (jwt_auth.hasOwnProperty(i)) {
+      if (url.includes(i)) {
+        header.Authorization = `Bearer ${jwt_auth[i]}`;
+        break;
+      }
+    }
+  }
+  return header;
 }
 
 class ThingURLProperty extends Property {
@@ -82,17 +103,7 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
-    const header = {
-      'Content-type': 'application/json',
-      Accept: 'application/json',
-    };
-    // Check for an auth token in the jwt_auth object
-    for (const i in jwt_auth) {
-      if (this.url.includes(i)) {
-        header.Authorization = `Bearer ${jwt_auth[i]}`;
-        break;
-      }
-    }
+    const header = getHeader(this.url, true);
     return fetch(this.url, {
       method: 'PUT',
       headers: header,
@@ -184,16 +195,7 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
-      const header = {
-        Accept: 'application/json',
-      };
-      // Check for an auth token in the jwt_auth object
-      for (const i in jwt_auth) {
-        if (propertyUrl.includes(i)) {
-          header.Authorization = `Bearer ${jwt_auth[i]}`;
-          break;
-        }
-      }
+      const header = getHeader(propertyUrl);
       this.propertyPromises.push(
         fetch(propertyUrl, {
           headers: header,
@@ -402,16 +404,7 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
-      const header = {
-        Accept: 'application/json',
-      };
-      // Check for an auth token in the jwt_auth object
-      for (const i in jwt_auth) {
-        if (prop.url.includes(i)) {
-          header.Authorization = `Bearer ${jwt_auth[i]}`;
-          break;
-        }
-      }
+      const header = getHeader(prop.url);
       return fetch(prop.url, {
         headers: header,
       }).then((res) => {
@@ -428,16 +421,7 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
-        const header = {
-          Accept: 'application/json',
-        };
-        // Check for an auth token in the jwt_auth object
-        for (const i in jwt_auth) {
-          if (this.actionsUrl.includes(i)) {
-            header.Authorization = `Bearer ${jwt_auth[i]}`;
-            break;
-          }
-        }
+        const header = getHeader(this.actionsUrl);
         return fetch(this.actionsUrl, {
           headers: header,
         }).then((res) => {
@@ -463,17 +447,7 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
-        const header = {
-          'Content-type': 'application/json',
-          Accept: 'application/json',
-        };
-        // Check for an auth token in the jwt_auth object
-        for (const i in jwt_auth) {
-          if (this.eventsUrl.includes(i)) {
-            header.Authorization = `Bearer ${jwt_auth[i]}`;
-            break;
-          }
-        }
+        const header = getHeader(this.eventsUrl, true);
         return fetch(this.eventsUrl, {
           headers: header,
         }).then((res) => {
@@ -528,16 +502,7 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-    const header = {
-      Accept: 'application/json',
-    };
-    // Check for an auth token in the jwt_auth object
-    for (const i in jwt_auth) {
-      if (this.actionsUrl.includes(i)) {
-        header.Authorization = `Bearer ${jwt_auth[i]}`;
-        break;
-      }
-    }
+    const header = getHeader(this.actionsUrl);
     return fetch(this.actionsUrl, {
       method: 'POST',
       headers: header,
@@ -558,16 +523,8 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
-        const header = {
-          Accept: 'application/json',
-        };
-        // Check for an auth token in the jwt_auth object
-        for (const i in jwt_auth) {
-          if (actionHref.includes(i)) {
-            header.Authorization = `Bearer ${jwt_auth[i]}`;
-            break;
-          }
-        }
+        const header = getHeader(actionHref);
+
         promise = fetch(actionHref, {
           method: 'DELETE',
           headers: header,
@@ -616,13 +573,7 @@ class ThingURLAdapter extends Adapter {
 
     let res;
     // Check for an auth token
-    const header = {Accept: 'application/json'};
-    for (const i in jwt_auth) {
-      if (url.includes(i)) {
-        header.Authorization = `Bearer ${jwt_auth[i]}`;
-        break;
-      }
-    }
+    const header = getHeader(url);
     try {
       res = await fetch(url, {headers: header});
     } catch (e) {
