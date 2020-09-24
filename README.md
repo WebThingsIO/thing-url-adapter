@@ -21,6 +21,7 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
    * Remove the downloaded version of the webthings adapter. 
    * Clone this project into the .mozilla-iot/addons directory. 
    * run npm install in the thing-url-adapter directory.
+   * start gateway, go to addons and ensure plugin is enabled. 
    * Create the jwt_auth.json in .mozilla-iot/config. 
    * Gateway will need to be restarted when jwts  are added.
    * Create jwt with code similar to [this](https://github.com/m2ag-labs/m2ag-thing/blob/master/api/helpers/auth.py)  
