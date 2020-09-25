@@ -826,11 +826,13 @@ function loadThingURLAdapter(addonManager) {
       adapter.pollInterval = config.pollInterval * 1000;
     }
     // Add secureJWTs
-    for (const item of config.secureThings) {
-      const i = item.split(' ');
-      JWT_AUTH[i[0]] = i[1];
+    if ('secureThings' in config) {
+      for (const item of config.secureThings) {
+        const i = item.split(' ');
+        JWT_AUTH[i[0]] = i[1];
+      }
+      console.log(JWT_AUTH);
     }
-    console.log(JWT_AUTH);
     for (const url of config.urls) {
       adapter.loadThing(url);
     }
