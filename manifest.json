@@ -18,13 +18,15 @@
   "options": {
     "default": {
       "urls": [],
-      "pollInterval": 5
+      "pollInterval": 5,
+      "secureThings" : []
     },
     "schema": {
       "type": "object",
       "required": [
         "urls",
-        "pollInterval"
+        "pollInterval",
+        "secureThings"
       ],
       "properties": {
         "urls": {
@@ -36,6 +38,13 @@
         "pollInterval": {
           "description": "The interval, in seconds, at which to poll property values.",
           "type": "number"
+        },
+        "secureThings": {
+          "description": "Hostname and JWT to be used to access secureThings. Separate by a space.",
+          "type":"array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

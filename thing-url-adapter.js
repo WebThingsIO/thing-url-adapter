@@ -38,19 +38,9 @@ const POLL_INTERVAL = 5 * 1000;
 const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
-let jwt_auth; // Auth tokens to access things with
-// gets called in loadThingURLAdapter
-// jwts can be generated with the code here :
-//
-function loadJwtAuth() {
-  try {
-    jwt_auth = require('../../config/jwt_auth.json');
-    console.log(jwt_auth);
-  } catch (err) {
-    jwt_auth = {};
-    console.log('no jwt_auth.json file found');
-  }
-}
+const JWT_AUTH = {}; // Auth tokens to access things with
+// gets filled in loadThingURLAdapter
+
 // This function checks the supplied url against keys
 // in the jwt_auth object.
 function getHeader(url, contentType = false) {
@@ -59,10 +49,10 @@ function getHeader(url, contentType = false) {
     header['Content-type'] = 'application/json';
   }
   // Check for an auth token in the jwt_auth object
-  for (const i in jwt_auth) {
-    if (jwt_auth.hasOwnProperty(i)) {
+  for (const i in JWT_AUTH) {
+    if (JWT_AUTH.hasOwnProperty(i)) {
       if (url.includes(i)) {
-        header.Authorization = `Bearer ${jwt_auth[i]}`;
+        header.Authorization = `Bearer ${JWT_AUTH[i]}`;
         break;
       }
     }
@@ -296,9 +286,9 @@ class ThingURLDevice extends Device {
     // if we have an entry for the wss url stub in jwt_auth
     // add auth to query string
     let auth = '';
-    for (const i in jwt_auth) {
+    for (const i in JWT_AUTH) {
       if (this.wsUrl.includes(i)) {
-        auth = `?Authorization=Bearer ${jwt_auth[i]}`;
+        auth = `?Authorization=Bearer ${JWT_AUTH[i]}`;
         break;
       }
     }
@@ -826,8 +816,6 @@ function startDNSDiscovery(adapter) {
 }
 
 function loadThingURLAdapter(addonManager) {
-  loadJwtAuth(); // Maybe this needs to be called before each access?
-  // in case a new jwt was set
   const adapter = new ThingURLAdapter(addonManager);
 
   const db = new Database(manifest.id);
@@ -837,7 +825,12 @@ function loadThingURLAdapter(addonManager) {
     if (typeof config.pollInterval === 'number') {
       adapter.pollInterval = config.pollInterval * 1000;
     }
-
+    // Add secureJWTs
+    for (const item of config.secureThings) {
+      const i = item.split(' ');
+      JWT_AUTH[i[0]] = i[1];
+    }
+    console.log(JWT_AUTH);
     for (const url of config.urls) {
       adapter.loadThing(url);
     }
