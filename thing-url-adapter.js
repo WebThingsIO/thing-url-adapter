@@ -46,7 +46,7 @@ const JWT_AUTH = {}; // Auth tokens to access things with
 function getHeaders(url, contentType = false) {
   const header = {Accept: 'application/json'};
   if (contentType) {
-    header['Content-type'] = 'application/json';
+    header['Content-Type'] = 'application/json';
   }
   // Check for an auth token in the jwt_auth object
   for (const i in JWT_AUTH) {
@@ -288,11 +288,13 @@ class ThingURLDevice extends Device {
     let auth = '';
     for (const i in JWT_AUTH) {
       if (this.wsUrl.includes(i)) {
-        auth = `?Authorization=Bearer ${JWT_AUTH[i]}`;
+        auth = `?jwt=${JWT_AUTH[i]}`;
         break;
       }
     }
     // -- added '' and {} to get eslint to shut up
+    // this.ws will still be null here if no jwt has been entered
+    // for the current device
     if (this.ws === null) {
       this.ws = new WebSocket(`${this.wsUrl}${auth}`, '', {});
     }
