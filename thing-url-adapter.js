@@ -43,7 +43,7 @@ const JWT_AUTH = {}; // Auth tokens to access things with
 
 // This function checks the supplied url against keys
 // in the jwt_auth object.
-function getHeader(url, contentType = false) {
+function getHeaders(url, contentType = false) {
   const header = {Accept: 'application/json'};
   if (contentType) {
     header['Content-type'] = 'application/json';
@@ -93,7 +93,7 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
-    const header = getHeader(this.url, true);
+    const header = getHeaders(this.url, true);
     return fetch(this.url, {
       method: 'PUT',
       headers: header,
@@ -185,7 +185,7 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
-      const header = getHeader(propertyUrl);
+      const header = getHeaders(propertyUrl);
       this.propertyPromises.push(
         fetch(propertyUrl, {
           headers: header,
@@ -394,7 +394,7 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
-      const header = getHeader(prop.url);
+      const header = getHeaders(prop.url);
       return fetch(prop.url, {
         headers: header,
       }).then((res) => {
@@ -411,7 +411,7 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
-        const header = getHeader(this.actionsUrl);
+        const header = getHeaders(this.actionsUrl);
         return fetch(this.actionsUrl, {
           headers: header,
         }).then((res) => {
@@ -437,7 +437,7 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
-        const header = getHeader(this.eventsUrl, true);
+        const header = getHeaders(this.eventsUrl, true);
         return fetch(this.eventsUrl, {
           headers: header,
         }).then((res) => {
@@ -492,7 +492,7 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-    const header = getHeader(this.actionsUrl);
+    const header = getHeaders(this.actionsUrl);
     return fetch(this.actionsUrl, {
       method: 'POST',
       headers: header,
@@ -513,7 +513,7 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
-        const header = getHeader(actionHref);
+        const header = getHeaders(actionHref);
 
         promise = fetch(actionHref, {
           method: 'DELETE',
@@ -563,7 +563,7 @@ class ThingURLAdapter extends Adapter {
 
     let res;
     // Check for an auth token
-    const header = getHeader(url);
+    const header = getHeaders(url);
     try {
       res = await fetch(url, {headers: header});
     } catch (e) {
