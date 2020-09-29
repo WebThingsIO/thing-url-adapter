@@ -292,13 +292,8 @@ class ThingURLDevice extends Device {
         break;
       }
     }
-    // -- added '' and {} to get eslint to shut up
-    // this.ws will still be null here if no jwt has been entered
-    // for the current device
-    if (this.ws === null) {
-      this.ws = new WebSocket(`${this.wsUrl}${auth}`, '', {});
-    }
 
+    this.ws = new WebSocket(`${this.wsUrl}${auth}`, '', {});
 
     this.ws.on('open', () => {
       this.connectedNotify(true);
