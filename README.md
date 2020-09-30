@@ -28,4 +28,4 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
 
     ![enter_data.png](images/enter_data.png)
 
-    * Save the entry by pressing apply.
+    * Save the entry by pressing "Apply" at the bottom of the page.
