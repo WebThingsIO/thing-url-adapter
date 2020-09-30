@@ -38,35 +38,6 @@ const POLL_INTERVAL = 5 * 1000;
 const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
-const AUTH_DATA = {}; // Auth tokens to access things with
-// gets filled in loadThingURLAdapter
-// This function checks the supplied url against keys
-// in the AUTH_DATA object.
-function getHeaders(url, contentType = false) {
-  const headers = {Accept: 'application/json'};
-  if (contentType) {
-    headers['Content-Type'] = 'application/json';
-  }
-  // Check for an auth token in the AUTH_DATA object
-  for (const i in AUTH_DATA) {
-    if (AUTH_DATA.hasOwnProperty(i)) {
-      if (url.includes(i)) {
-        switch (AUTH_DATA[i][0]) { // 0 is the method - jwt etc
-          case 'jwt':
-            headers.Authorization = `Bearer ${AUTH_DATA[i][1]}`;
-            break;
-          case 'basic':
-          case 'digest':
-          default:
-            // not implemented
-            break;
-        }
-        break;
-      }
-    }
-  }
-  return headers;
-}
 
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
@@ -101,7 +72,7 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
-    const headers = getHeaders(this.url, true);
+    const headers = this.device.adapter.getHeaders(this.url, true);
     return fetch(this.url, {
       method: 'PUT',
       headers: headers,
@@ -145,6 +116,7 @@ class ThingURLDevice extends Device {
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.closing = false;
+    this.adapter = adapter;
 
     for (const actionName in description.actions) {
       const action = description.actions[actionName];
@@ -193,7 +165,7 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
-      const headers = getHeaders(propertyUrl);
+      const headers = this.adapter.getHeaders(propertyUrl);
       this.propertyPromises.push(
         fetch(propertyUrl, {
           headers: headers,
@@ -294,11 +266,12 @@ class ThingURLDevice extends Device {
     // if we have an entry for the wss url stub in jwt_auth
     // add auth to query string
     let auth = '';
-    for (const i in AUTH_DATA) {
+
+    for (const i in this.adapter.authData) {
       if (this.wsUrl.includes(i)) {
-        switch (AUTH_DATA[i][0]) { // 0 is the method - jwt etc
+        switch (this.adapter.authData[i][0]) { // 0 is the method - jwt etc
           case 'jwt':
-            auth = `?jwt=${AUTH_DATA[i][1]}`;
+            auth = `?jwt=${this.adapter.authData[i][1]}`;
             break;
           case 'basic':
           case 'digest':
@@ -408,7 +381,7 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
-      const headers = getHeaders(prop.url);
+      const headers = this.adapter.getHeaders(prop.url);
       return fetch(prop.url, {
         headers: headers,
       }).then((res) => {
@@ -425,7 +398,7 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
-        const headers = getHeaders(this.actionsUrl);
+        const headers = this.adapter.getHeaders(this.actionsUrl);
         return fetch(this.actionsUrl, {
           headers: headers,
         }).then((res) => {
@@ -451,7 +424,7 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
-        const headers = getHeaders(this.eventsUrl, true);
+        const headers = this.adapter.getHeaders(this.eventsUrl, true);
         return fetch(this.eventsUrl, {
           headers: headers,
         }).then((res) => {
@@ -506,7 +479,7 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-    const headers = getHeaders(this.actionsUrl);
+    const headers = this.adapter.getHeaders(this.actionsUrl);
     return fetch(this.actionsUrl, {
       method: 'POST',
       headers: headers,
@@ -527,7 +500,7 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
-        const headers = getHeaders(actionHref);
+        const headers = this.adapter.getHeaders(actionHref);
 
         promise = fetch(actionHref, {
           method: 'DELETE',
@@ -555,6 +528,32 @@ class ThingURLAdapter extends Adapter {
     this.knownUrls = {};
     this.savedDevices = new Set();
     this.pollInterval = POLL_INTERVAL;
+    this.authData = {}; // set in loadthingurladapter
+  }
+
+  getHeaders(url, contentType = false) {
+    const headers = {Accept: 'application/json'};
+    if (contentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    for (const i in this.authData) {
+      if (this.authData.hasOwnProperty(i)) {
+        if (url.includes(i)) {
+          switch (this.authData[i][0]) { // 0 is the method - jwt etc
+            case 'jwt':
+              headers.Authorization = `Bearer ${this.authData[i][1]}`;
+              break;
+            case 'basic':
+            case 'digest':
+            default:
+            // not implemented
+              break;
+          }
+          break;
+        }
+      }
+    }
+    return headers;
   }
 
   async loadThing(url, retryCounter) {
@@ -576,7 +575,7 @@ class ThingURLAdapter extends Adapter {
     }
 
     let res;
-    const headers = getHeaders(url);
+    const headers = this.getHeaders(url);
     try {
       res = await fetch(url, {headers: headers});
     } catch (e) {
@@ -841,10 +840,12 @@ function loadThingURLAdapter(addonManager) {
 
     let modified = false;
     for (const entry in config.urls) {
-      if (typeof config.urls[entry] === 'string') {
-        config.urls[entry] =
-            {href: config.urls[entry], authentication: {method: 'none'}};
-        modified = true;
+      if (config.urls.hasOwnProperty(entry)) {
+        if (typeof config.urls[entry] === 'string') {
+          config.urls[entry] =
+              {href: config.urls[entry], authentication: {method: 'none'}};
+          modified = true;
+        }
       }
     }
     if (modified) {
@@ -863,13 +864,13 @@ function loadThingURLAdapter(addonManager) {
         }
         switch (url.authentication.method) {
           case 'jwt':
-            AUTH_DATA[url_stub] = ['jwt', url.authentication.token];
+            adapter.authData[url_stub] = ['jwt', url.authentication.token];
             break;
           case 'basic':
-            // AUTH_DATA[url_stub] = ['basic', ]
+            // adapter.authData[url_stub] = ['basic', ]
             // eslint-disable-next-line no-fallthrough
           case 'digest':
-            // AUTH_DATA[url_stub] = ['digest', ]
+            // adapter.authData[url_stub] = ['digest', ]
             // eslint-disable-next-line no-fallthrough
           case 'none':
             break;
