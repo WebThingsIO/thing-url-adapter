@@ -38,9 +38,8 @@ const POLL_INTERVAL = 5 * 1000;
 const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
-const JWT_AUTH = {}; // Auth tokens to access things with
+const AUTH_DATA = {}; // Auth tokens to access things with
 // gets filled in loadThingURLAdapter
-
 // This function checks the supplied url against keys
 // in the jwt_auth object.
 function getHeaders(url, contentType = false) {
@@ -49,10 +48,19 @@ function getHeaders(url, contentType = false) {
     header['Content-Type'] = 'application/json';
   }
   // Check for an auth token in the jwt_auth object
-  for (const i in JWT_AUTH) {
-    if (JWT_AUTH.hasOwnProperty(i)) {
+  for (const i in AUTH_DATA) {
+    if (AUTH_DATA.hasOwnProperty(i)) {
       if (url.includes(i)) {
-        header.Authorization = `Bearer ${JWT_AUTH[i]}`;
+        switch (AUTH_DATA[i][0]) { // 0 is the method - jwt etc
+          case 'jwt':
+            header.Authorization = `Bearer ${AUTH_DATA[i][1]}`;
+            break;
+          case 'basic':
+          case 'digest':
+          default:
+            // not implemented
+            break;
+        }
         break;
       }
     }
@@ -286,9 +294,18 @@ class ThingURLDevice extends Device {
     // if we have an entry for the wss url stub in jwt_auth
     // add auth to query string
     let auth = '';
-    for (const i in JWT_AUTH) {
+    for (const i in AUTH_DATA) {
       if (this.wsUrl.includes(i)) {
-        auth = `?jwt=${JWT_AUTH[i]}`;
+        switch (AUTH_DATA[i][0]) { // 0 is the method - jwt etc
+          case 'jwt':
+            auth = `?jwt=${AUTH_DATA[i][1]}`;
+            break;
+          case 'basic':
+          case 'digest':
+          default:
+            // not implemented
+            break;
+        }
         break;
       }
     }
@@ -822,17 +839,34 @@ function loadThingURLAdapter(addonManager) {
     if (typeof config.pollInterval === 'number') {
       adapter.pollInterval = config.pollInterval * 1000;
     }
-    // Add secureJWTs
-    if ('secureThings' in config) {
-      for (const item of config.secureThings) {
-        const i = item.split(' ');
-        JWT_AUTH[i[0]] = i[1];
-      }
-      console.log(JWT_AUTH);
-    }
     for (const url of config.urls) {
-      adapter.loadThing(url);
+      if ('authentication' in url) {
+        // remove http(s) from url
+        let url_stub = '';
+        if (url.href.includes('http://')) {
+          url_stub = url.href.substr(7);
+        }
+        if (url.href.includes('https://')) {
+          url_stub = url.href.substr(8);
+        }
+        switch (url.authentication.method) {
+          case 'jwt':
+            AUTH_DATA[url_stub] = ['jwt', url.authentication.token];
+            break;
+          case 'basic':
+            // AUTH_DATA[url_stub] = ['basic', ]
+            // eslint-disable-next-line no-fallthrough
+          case 'digest':
+            // AUTH_DATA[url_stub] = ['digest', ]
+            // eslint-disable-next-line no-fallthrough
+          default:
+            console.log(`${url.authentication.method} is not implemented`);
+            break;
+        }
+      }
+      adapter.loadThing(url.href);
     }
+    console.log(AUTH_DATA);
 
     startDNSDiscovery(adapter);
   }).catch(console.error);

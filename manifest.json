@@ -18,33 +18,66 @@
   "options": {
     "default": {
       "urls": [],
-      "pollInterval": 5,
-      "secureThings" : []
+      "pollInterval": 5
     },
     "schema": {
       "type": "object",
       "required": [
         "urls",
-        "pollInterval",
-        "secureThings"
+        "pollInterval"
       ],
       "properties": {
         "urls": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "required": [
+              "href"
+            ],
+            "properties": {
+              "href": {
+                "description": "Base URL of web thing",
+                "type": "string"
+              },
+              "authentication": {
+                "description": "Authentication credentials",
+                "type": "object",
+                "required": [
+                  "method"
+                ],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "basic",
+                      "digest",
+                      "jwt"
+                    ]
+                  },
+                  "username": {
+                    "description": "Username (for basic and digest)",
+                    "type": "string"
+                  },
+                  "password": {
+                    "description": "Password (for basic and digest)",
+                    "type": "string"
+                  },
+                  "realm": {
+                    "description": "Realm (for digest)",
+                    "type": "string"
+                  },
+                  "token": {
+                    "description": "Token (for JWT)",
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         },
         "pollInterval": {
           "description": "The interval, in seconds, at which to poll property values.",
           "type": "number"
-        },
-        "secureThings": {
-          "description": "Hostname and JWT to be used to access secureThings. Separate by a space.",
-          "type":"array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     }
