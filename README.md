@@ -11,7 +11,7 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
 * Web Things that require jwt, basic or digest authentication can be supported by adding configuration options on the adapter page.
 * To add a secure Web Thing:
 
-    * Use the hamburger to open the side menu and selet "Settings".
+    * Use the hamburger to open the side menu and select "Settings".
 
     ![selet_settings.png](images/selet_settings.png)
 
