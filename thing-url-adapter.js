@@ -41,19 +41,19 @@ const WS_MAX_BACKOFF = 30 * 1000;
 const AUTH_DATA = {}; // Auth tokens to access things with
 // gets filled in loadThingURLAdapter
 // This function checks the supplied url against keys
-// in the jwt_auth object.
+// in the AUTH_DATA object.
 function getHeaders(url, contentType = false) {
-  const header = {Accept: 'application/json'};
+  const headers = {Accept: 'application/json'};
   if (contentType) {
-    header['Content-Type'] = 'application/json';
+    headers['Content-Type'] = 'application/json';
   }
-  // Check for an auth token in the jwt_auth object
+  // Check for an auth token in the AUTH_DATA object
   for (const i in AUTH_DATA) {
     if (AUTH_DATA.hasOwnProperty(i)) {
       if (url.includes(i)) {
         switch (AUTH_DATA[i][0]) { // 0 is the method - jwt etc
           case 'jwt':
-            header.Authorization = `Bearer ${AUTH_DATA[i][1]}`;
+            headers.Authorization = `Bearer ${AUTH_DATA[i][1]}`;
             break;
           case 'basic':
           case 'digest':
@@ -65,7 +65,7 @@ function getHeaders(url, contentType = false) {
       }
     }
   }
-  return header;
+  return headers;
 }
 
 class ThingURLProperty extends Property {
@@ -101,10 +101,10 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
-    const header = getHeaders(this.url, true);
+    const headers = getHeaders(this.url, true);
     return fetch(this.url, {
       method: 'PUT',
-      headers: header,
+      headers: headers,
       body: JSON.stringify({
         [this.name]: value,
       }),
@@ -193,10 +193,10 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
-      const header = getHeaders(propertyUrl);
+      const headers = getHeaders(propertyUrl);
       this.propertyPromises.push(
         fetch(propertyUrl, {
-          headers: header,
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((res) => {
@@ -261,7 +261,7 @@ class ThingURLDevice extends Device {
       return;
     }
 
-    if (this.wsUrl) {
+    if (false) {
       if (!this.ws) {
         this.createWebSocket();
       }
@@ -408,9 +408,9 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
-      const header = getHeaders(prop.url);
+      const headers = getHeaders(prop.url);
       return fetch(prop.url, {
-        headers: header,
+        headers: headers,
       }).then((res) => {
         return res.json();
       }).then((res) => {
@@ -425,9 +425,9 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
-        const header = getHeaders(this.actionsUrl);
+        const headers = getHeaders(this.actionsUrl);
         return fetch(this.actionsUrl, {
-          headers: header,
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((actions) => {
@@ -451,9 +451,9 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
-        const header = getHeaders(this.eventsUrl, true);
+        const headers = getHeaders(this.eventsUrl, true);
         return fetch(this.eventsUrl, {
-          headers: header,
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((events) => {
@@ -506,10 +506,10 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-    const header = getHeaders(this.actionsUrl);
+    const headers = getHeaders(this.actionsUrl);
     return fetch(this.actionsUrl, {
       method: 'POST',
-      headers: header,
+      headers: headers,
       body: JSON.stringify({[action.name]: {input: action.input}}),
     }).then((res) => {
       return res.json();
@@ -527,11 +527,11 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
-        const header = getHeaders(actionHref);
+        const headers = getHeaders(actionHref);
 
         promise = fetch(actionHref, {
           method: 'DELETE',
-          headers: header,
+          headers: headers,
         }).catch((e) => {
           console.log(`Failed to cancel action: ${e}`);
         });
@@ -576,10 +576,9 @@ class ThingURLAdapter extends Adapter {
     }
 
     let res;
-    // Check for an auth token
-    const header = getHeaders(url);
+    const headers = getHeaders(url);
     try {
-      res = await fetch(url, {headers: header});
+      res = await fetch(url, {headers: headers});
     } catch (e) {
       // Retry the connection at a 2 second interval up to 5 times.
       if (retryCounter >= 5) {
@@ -866,8 +865,6 @@ function loadThingURLAdapter(addonManager) {
       }
       adapter.loadThing(url.href);
     }
-    console.log(AUTH_DATA);
-
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }
