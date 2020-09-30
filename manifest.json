@@ -49,6 +49,7 @@
                   "method": {
                     "type": "string",
                     "enum": [
+                      "none",
                       "basic",
                       "digest",
                       "jwt"

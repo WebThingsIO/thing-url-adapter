@@ -80,7 +80,7 @@ class ThingURLProperty extends Property {
    * @method setValue
    * @returns {Promise} resolves to the updated value
    *
-   * @note it is possible that the updated value doesn't match
+   * @note it is possible that the updated value doe'sn't match
    * the value passed in.
    */
   setValue(value) {
@@ -842,7 +842,8 @@ function loadThingURLAdapter(addonManager) {
     let modified = false;
     for (const entry in config.urls) {
       if (typeof config.urls[entry] === 'string') {
-        config.urls[entry] = {href: config.urls[entry]};
+        config.urls[entry] =
+            {href: config.urls[entry], authentication: {method: 'none'}};
         modified = true;
       }
     }
@@ -870,6 +871,8 @@ function loadThingURLAdapter(addonManager) {
           case 'digest':
             // AUTH_DATA[url_stub] = ['digest', ]
             // eslint-disable-next-line no-fallthrough
+          case 'none':
+            break;
           default:
             console.log(`${url.authentication.method} is not implemented`);
             break;
