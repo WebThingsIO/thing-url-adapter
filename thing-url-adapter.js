@@ -261,7 +261,7 @@ class ThingURLDevice extends Device {
       return;
     }
 
-    if (false) {
+    if (this.wsUrl) {
       if (!this.ws) {
         this.createWebSocket();
       }
@@ -838,6 +838,18 @@ function loadThingURLAdapter(addonManager) {
     if (typeof config.pollInterval === 'number') {
       adapter.pollInterval = config.pollInterval * 1000;
     }
+
+    let modified = false;
+    for (const entry in config.urls) {
+      if (typeof config.urls[entry] === 'string') {
+        config.urls[entry] = {href: config.urls[entry]};
+        modified = true;
+      }
+    }
+    if (modified) {
+      db.saveConfig(config);
+    }
+
     for (const url of config.urls) {
       if ('authentication' in url) {
         // remove http(s) from url
