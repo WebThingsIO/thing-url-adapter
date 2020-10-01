@@ -265,7 +265,6 @@ class ThingURLDevice extends Device {
     }
 
     let auth = '';
-
     for (const [url, authData] of Object.entries(this.adapter.authData)) {
       if (this.wsUrl.includes(url)) {
         switch (authData.method) {
@@ -530,14 +529,14 @@ class ThingURLAdapter extends Adapter {
     this.authData = {};
   }
 
-  getHeaders(url, contentType = false) {
+  getHeaders(_url, contentType = false) {
     const headers = {Accept: 'application/json'};
     if (contentType) {
       headers['Content-Type'] = 'application/json';
     }
-    for (const [url, authData] of Object.entries(this.adapter.authData)) {
-      if (url.includes(i)) {
-        switch (authData.method) { // 0 is the method - jwt etc
+    for (const [url, authData] of Object.entries(this.authData)) {
+      if (_url.includes(url)) {
+        switch (authData.method) {
           case 'jwt':
             headers.Authorization = `Bearer ${authData.token}`;
             break;
