@@ -263,15 +263,14 @@ class ThingURLDevice extends Device {
     if (this.closing) {
       return;
     }
-    // if we have an entry for the wss url stub in jwt_auth
-    // add auth to query string
+
     let auth = '';
 
-    for (const i in this.adapter.authData) {
-      if (this.wsUrl.includes(i)) {
-        switch (this.adapter.authData[i].method) { // 0 is the method - jwt etc
+    for (const [url, authData] of Object.entries(this.adapter.authData)) {
+      if (this.wsUrl.includes(url)) {
+        switch (authData.method) {
           case 'jwt':
-            auth = `?jwt=${this.adapter.authData[i].token}`;
+            auth = `?jwt=${authData.token}`;
             break;
           case 'basic':
           case 'digest':
@@ -424,7 +423,7 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
-        const headers = this.adapter.getHeaders(this.eventsUrl, true);
+        const headers = this.adapter.getHeaders(this.eventsUrl);
         return fetch(this.eventsUrl, {
           headers: headers,
         }).then((res) => {
@@ -479,7 +478,7 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-    const headers = this.adapter.getHeaders(this.actionsUrl);
+    const headers = this.adapter.getHeaders(this.actionsUrl, true);
     return fetch(this.actionsUrl, {
       method: 'POST',
       headers: headers,
@@ -528,7 +527,7 @@ class ThingURLAdapter extends Adapter {
     this.knownUrls = {};
     this.savedDevices = new Set();
     this.pollInterval = POLL_INTERVAL;
-    this.authData = {}; // set in loadthingurladapter
+    this.authData = {};
   }
 
   getHeaders(url, contentType = false) {
@@ -536,21 +535,19 @@ class ThingURLAdapter extends Adapter {
     if (contentType) {
       headers['Content-Type'] = 'application/json';
     }
-    for (const i in this.authData) {
-      if (this.authData.hasOwnProperty(i)) {
-        if (url.includes(i)) {
-          switch (this.authData[i].method) { // 0 is the method - jwt etc
-            case 'jwt':
-              headers.Authorization = `Bearer ${this.authData[i].token}`;
-              break;
-            case 'basic':
-            case 'digest':
-            default:
+    for (const [url, authData] of Object.entries(this.adapter.authData)) {
+      if (url.includes(i)) {
+        switch (authData.method) { // 0 is the method - jwt etc
+          case 'jwt':
+            headers.Authorization = `Bearer ${authData.token}`;
+            break;
+          case 'basic':
+          case 'digest':
+          default:
             // not implemented
-              break;
-          }
-          break;
+            break;
         }
+        break;
       }
     }
     return headers;
@@ -862,16 +859,16 @@ function loadThingURLAdapter(addonManager) {
     for (const url of config.urls) {
       if ('authentication' in url) {
         // remove http(s) from url
-        let url_stub = '';
+        let urlStub = '';
         if (url.href.includes('http://')) {
-          url_stub = url.href.substr(7);
+          urlStub = url.href.substr(7);
         }
         if (url.href.includes('https://')) {
-          url_stub = url.href.substr(8);
+          urlStub = url.href.substr(8);
         }
         switch (url.authentication.method) {
           case 'jwt':
-            adapter.authData[url_stub] = url.authentication;
+            adapter.authData[urlStub] = url.authentication;
             break;
           case 'basic':
             // adapter.authData[url_stub] = url.authentication;
