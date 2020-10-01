@@ -888,7 +888,6 @@ function loadThingURLAdapter(addonManager) {
             break;
         }
       }
-      console.log(adapter.authData);
       adapter.loadThing(url.href);
     }
     startDNSDiscovery(adapter);
