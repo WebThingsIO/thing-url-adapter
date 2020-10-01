@@ -23,7 +23,7 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
 
     ![select_configure.png](images/select_configure.png)
 
-    * Enter data relevant to the desired authenticaton method.
+    * Enter data relevant to the desired authentication method.
     * To manually enter device URLs with no authentication select 'none' for the method.
 
     ![enter_data.png](images/enter_data.png)
