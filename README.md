@@ -13,7 +13,7 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
 
     * Use the hamburger to open the side menu and select "Settings".
 
-    ![selet_settings.png](images/selet_settings.png)
+    ![select_settings.png](images/select_settings.png)
 
     * Select "Add-ons".
 
@@ -24,7 +24,7 @@ This is an adapter add-on for the [Mozilla WebThings Gateway](https://github.com
     ![select_configure.png](images/select_configure.png)
 
     * Enter data relevant to the desired authenticaton method.
-    * To manually enter device urls with no authentication select 'none' for the method.
+    * To manually enter device URLs with no authentication select 'none' for the method.
 
     ![enter_data.png](images/enter_data.png)
 

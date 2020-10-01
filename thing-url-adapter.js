@@ -51,7 +51,7 @@ class ThingURLProperty extends Property {
    * @method setValue
    * @returns {Promise} resolves to the updated value
    *
-   * @note it is possible that the updated value doe'sn't match
+   * @note it is possible that the updated value doesn't match
    * the value passed in.
    */
   setValue(value) {
@@ -116,7 +116,7 @@ class ThingURLDevice extends Device {
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.closing = false;
-    this.adapter = adapter;
+
 
     for (const actionName in description.actions) {
       const action = description.actions[actionName];
@@ -269,9 +269,9 @@ class ThingURLDevice extends Device {
 
     for (const i in this.adapter.authData) {
       if (this.wsUrl.includes(i)) {
-        switch (this.adapter.authData[i][0]) { // 0 is the method - jwt etc
+        switch (this.adapter.authData[i].method) { // 0 is the method - jwt etc
           case 'jwt':
-            auth = `?jwt=${this.adapter.authData[i][1]}`;
+            auth = `?jwt=${this.adapter.authData[i].token}`;
             break;
           case 'basic':
           case 'digest':
@@ -539,9 +539,9 @@ class ThingURLAdapter extends Adapter {
     for (const i in this.authData) {
       if (this.authData.hasOwnProperty(i)) {
         if (url.includes(i)) {
-          switch (this.authData[i][0]) { // 0 is the method - jwt etc
+          switch (this.authData[i].method) { // 0 is the method - jwt etc
             case 'jwt':
-              headers.Authorization = `Bearer ${this.authData[i][1]}`;
+              headers.Authorization = `Bearer ${this.authData[i].token}`;
               break;
             case 'basic':
             case 'digest':
@@ -839,16 +839,23 @@ function loadThingURLAdapter(addonManager) {
     }
 
     let modified = false;
-    for (const entry in config.urls) {
-      if (config.urls.hasOwnProperty(entry)) {
-        if (typeof config.urls[entry] === 'string') {
-          config.urls[entry] =
-              {href: config.urls[entry], authentication: {method: 'none'}};
-          modified = true;
-        }
+    const urls = [];
+    for (const entry of config.urls) {
+      if (typeof entry === 'string') {
+        urls.push({
+          href: entry,
+          authentication: {
+            method: 'none',
+          },
+        });
+        modified = true;
+      } else {
+        urls.push(entry);
       }
     }
+
     if (modified) {
+      config.urls = urls;
       db.saveConfig(config);
     }
 
@@ -864,13 +871,15 @@ function loadThingURLAdapter(addonManager) {
         }
         switch (url.authentication.method) {
           case 'jwt':
-            adapter.authData[url_stub] = ['jwt', url.authentication.token];
+            adapter.authData[url_stub] = url.authentication;
             break;
           case 'basic':
-            // adapter.authData[url_stub] = ['basic', ]
+            // adapter.authData[url_stub] = url.authentication;
+            // break;
             // eslint-disable-next-line no-fallthrough
           case 'digest':
-            // adapter.authData[url_stub] = ['digest', ]
+            // adapter.authData[url_stub] = url.authentication;
+            // break;
             // eslint-disable-next-line no-fallthrough
           case 'none':
             break;
@@ -879,6 +888,7 @@ function loadThingURLAdapter(addonManager) {
             break;
         }
       }
+      console.log(adapter.authData);
       adapter.loadThing(url.href);
     }
     startDNSDiscovery(adapter);
