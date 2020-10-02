@@ -38,6 +38,7 @@ const POLL_INTERVAL = 5 * 1000;
 const WS_INITIAL_BACKOFF = 1000;
 const WS_MAX_BACKOFF = 30 * 1000;
 
+
 class ThingURLProperty extends Property {
   constructor(device, name, url, propertyDescription) {
     super(device, name, propertyDescription);
@@ -71,12 +72,10 @@ class ThingURLProperty extends Property {
       return Promise.resolve(value);
     }
 
+    const headers = this.device.adapter.getHeaders(this.url, true);
     return fetch(this.url, {
       method: 'PUT',
-      headers: {
-        'Content-type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify({
         [this.name]: value,
       }),
@@ -117,6 +116,7 @@ class ThingURLDevice extends Device {
     this.notifiedEvents = new Set();
     this.scheduledUpdate = null;
     this.closing = false;
+
 
     for (const actionName in description.actions) {
       const action = description.actions[actionName];
@@ -165,11 +165,10 @@ class ThingURLDevice extends Device {
         propertyUrl = this.baseHref + propertyDescription.href;
       }
 
+      const headers = this.adapter.getHeaders(propertyUrl);
       this.propertyPromises.push(
         fetch(propertyUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((res) => {
@@ -265,7 +264,24 @@ class ThingURLDevice extends Device {
       return;
     }
 
-    this.ws = new WebSocket(this.wsUrl);
+    let auth = '';
+    for (const [url, authData] of Object.entries(this.adapter.authData)) {
+      if (this.wsUrl.includes(url)) {
+        switch (authData.method) {
+          case 'jwt':
+            auth = `?jwt=${authData.token}`;
+            break;
+          case 'basic':
+          case 'digest':
+          default:
+            // not implemented
+            break;
+        }
+        break;
+      }
+    }
+
+    this.ws = new WebSocket(`${this.wsUrl}${auth}`, '', {});
 
     this.ws.on('open', () => {
       this.connectedNotify(true);
@@ -363,10 +379,9 @@ class ThingURLDevice extends Device {
 
     // Update properties
     await Promise.all(Array.from(this.properties.values()).map((prop) => {
+      const headers = this.adapter.getHeaders(prop.url);
       return fetch(prop.url, {
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: headers,
       }).then((res) => {
         return res.json();
       }).then((res) => {
@@ -381,10 +396,9 @@ class ThingURLDevice extends Device {
     })).then(() => {
       // Check for new actions
       if (this.actionsUrl !== null) {
+        const headers = this.adapter.getHeaders(this.actionsUrl);
         return fetch(this.actionsUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((actions) => {
@@ -408,10 +422,9 @@ class ThingURLDevice extends Device {
     }).then(() => {
       // Check for new events
       if (this.eventsUrl !== null) {
+        const headers = this.adapter.getHeaders(this.eventsUrl);
         return fetch(this.eventsUrl, {
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: headers,
         }).then((res) => {
           return res.json();
         }).then((events) => {
@@ -464,13 +477,10 @@ class ThingURLDevice extends Device {
 
   performAction(action) {
     action.start();
-
+    const headers = this.adapter.getHeaders(this.actionsUrl, true);
     return fetch(this.actionsUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify({[action.name]: {input: action.input}}),
     }).then((res) => {
       return res.json();
@@ -488,11 +498,11 @@ class ThingURLDevice extends Device {
 
     this.requestedActions.forEach((action, actionHref) => {
       if (action.name === actionName && action.id === actionId) {
+        const headers = this.adapter.getHeaders(actionHref);
+
         promise = fetch(actionHref, {
           method: 'DELETE',
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: headers,
         }).catch((e) => {
           console.log(`Failed to cancel action: ${e}`);
         });
@@ -516,6 +526,30 @@ class ThingURLAdapter extends Adapter {
     this.knownUrls = {};
     this.savedDevices = new Set();
     this.pollInterval = POLL_INTERVAL;
+    this.authData = {};
+  }
+
+  getHeaders(_url, contentType = false) {
+    const headers = {Accept: 'application/json'};
+    if (contentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    for (const [url, authData] of Object.entries(this.authData)) {
+      if (_url.includes(url)) {
+        switch (authData.method) {
+          case 'jwt':
+            headers.Authorization = `Bearer ${authData.token}`;
+            break;
+          case 'basic':
+          case 'digest':
+          default:
+            // not implemented
+            break;
+        }
+        break;
+      }
+    }
+    return headers;
   }
 
   async loadThing(url, retryCounter) {
@@ -537,8 +571,9 @@ class ThingURLAdapter extends Adapter {
     }
 
     let res;
+    const headers = this.getHeaders(url);
     try {
-      res = await fetch(url, {headers: {Accept: 'application/json'}});
+      res = await fetch(url, {headers: headers});
     } catch (e) {
       // Retry the connection at a 2 second interval up to 5 times.
       if (retryCounter >= 5) {
@@ -799,10 +834,58 @@ function loadThingURLAdapter(addonManager) {
       adapter.pollInterval = config.pollInterval * 1000;
     }
 
-    for (const url of config.urls) {
-      adapter.loadThing(url);
+    let modified = false;
+    const urls = [];
+    for (const entry of config.urls) {
+      if (typeof entry === 'string') {
+        urls.push({
+          href: entry,
+          authentication: {
+            method: 'none',
+          },
+        });
+        modified = true;
+      } else {
+        urls.push(entry);
+      }
     }
 
+    if (modified) {
+      config.urls = urls;
+      db.saveConfig(config);
+    }
+
+    for (const url of config.urls) {
+      if ('authentication' in url) {
+        // remove http(s) from url
+        let urlStub = '';
+        if (url.href.includes('http://')) {
+          urlStub = url.href.substr(7);
+        }
+        if (url.href.includes('https://')) {
+          urlStub = url.href.substr(8);
+        }
+        switch (url.authentication.method) {
+          case 'jwt':
+            adapter.authData[urlStub] = url.authentication;
+            break;
+          case 'basic':
+            // adapter.authData[url_stub] = url.authentication;
+            // break;
+            // eslint-disable-next-line no-fallthrough
+          case 'digest':
+            // adapter.authData[url_stub] = url.authentication;
+            // break;
+            // eslint-disable-next-line no-fallthrough
+          case 'none':
+            break;
+          default:
+            console.log(`${url.authentication.method} is not implemented`);
+            break;
+        }
+      }
+      adapter.loadThing(url.href);
+    }
     startDNSDiscovery(adapter);
   }).catch(console.error);
 }

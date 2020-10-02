@@ -30,7 +30,50 @@
         "urls": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "required": [
+              "href"
+            ],
+            "properties": {
+              "href": {
+                "description": "Base URL of web thing",
+                "type": "string"
+              },
+              "authentication": {
+                "description": "Authentication credentials",
+                "type": "object",
+                "required": [
+                  "method"
+                ],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "basic",
+                      "digest",
+                      "jwt"
+                    ]
+                  },
+                  "username": {
+                    "description": "Username (for basic and digest)",
+                    "type": "string"
+                  },
+                  "password": {
+                    "description": "Password (for basic and digest)",
+                    "type": "string"
+                  },
+                  "realm": {
+                    "description": "Realm (for digest)",
+                    "type": "string"
+                  },
+                  "token": {
+                    "description": "Token (for JWT)",
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         },
         "pollInterval": {
@@ -41,5 +84,5 @@
     }
   },
   "short_name": "Web Thing",
-  "version": "0.4.8"
+  "version": "0.5.0"
 }
