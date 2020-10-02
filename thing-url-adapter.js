@@ -858,32 +858,16 @@ function loadThingURLAdapter(addonManager) {
     for (const url of config.urls) {
       if ('authentication' in url) {
         // remove http(s) from url
-        let urlStub = '';
-        if (url.href.includes('http://')) {
+        let urlStub = url.href;
+        if (url.href.startsWith('http://')) {
           urlStub = url.href.substr(7);
-        }
-        if (url.href.includes('https://')) {
+        } else if (url.href.startsWith('https://')) {
           urlStub = url.href.substr(8);
         }
-        switch (url.authentication.method) {
-          case 'jwt':
-            adapter.authData[urlStub] = url.authentication;
-            break;
-          case 'basic':
-            // adapter.authData[url_stub] = url.authentication;
-            // break;
-            // eslint-disable-next-line no-fallthrough
-          case 'digest':
-            // adapter.authData[url_stub] = url.authentication;
-            // break;
-            // eslint-disable-next-line no-fallthrough
-          case 'none':
-            break;
-          default:
-            console.log(`${url.authentication.method} is not implemented`);
-            break;
-        }
+
+        adapter.authData[urlStub] = url.authentication;
       }
+
       adapter.loadThing(url.href);
     }
     startDNSDiscovery(adapter);
