@@ -1,5 +1,5 @@
 {
-  "author": "Mozilla IoT",
+  "author": "WebThingsIO",
   "description": "Native web thing support",
   "gateway_specific_settings": {
     "webthings": {
@@ -10,7 +10,7 @@
       "enabled": true
     }
   },
-  "homepage_url": "https://github.com/mozilla-iot/thing-url-adapter",
+  "homepage_url": "https://github.com/WebThingsIO/thing-url-adapter",
   "id": "thing-url-adapter",
   "license": "MPL-2.0",
   "manifest_version": 1,
