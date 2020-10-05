@@ -50,22 +50,8 @@
                     "type": "string",
                     "enum": [
                       "none",
-                      "basic",
-                      "digest",
                       "jwt"
                     ]
-                  },
-                  "username": {
-                    "description": "Username (for basic and digest)",
-                    "type": "string"
-                  },
-                  "password": {
-                    "description": "Password (for basic and digest)",
-                    "type": "string"
-                  },
-                  "realm": {
-                    "description": "Realm (for digest)",
-                    "type": "string"
                   },
                   "token": {
                     "description": "Token (for JWT)",
