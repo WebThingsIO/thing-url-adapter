@@ -550,6 +550,8 @@ class ThingURLAdapter extends Adapter {
 
     if (!this.knownUrls[href]) {
       this.knownUrls[href] = {
+        href,
+        authentication: url.authentication,
         digest: '',
         timestamp: 0,
       };
@@ -584,6 +586,8 @@ class ThingURLAdapter extends Adapter {
     }
 
     this.knownUrls[href] = {
+      href,
+      authentication: url.authentication,
       digest: dig,
       timestamp: Date.now(),
     };
@@ -742,7 +746,7 @@ class ThingURLAdapter extends Adapter {
   }
 
   startPairing() {
-    for (const knownUrl in this.knownUrls) {
+    for (const knownUrl of Object.values(this.knownUrls)) {
       this.loadThing(knownUrl).catch((err) => {
         console.warn(`Unable to reload Thing(s) from ${knownUrl}: ${err}`);
       });
@@ -781,9 +785,12 @@ function startDNSDiscovery(adapter) {
     if (service.txt.hasOwnProperty('tls') && service.txt.tls === '1') {
       protocol = 'https';
     }
-    adapter.loadThing(
-      `${protocol}://${host}:${service.port}${service.txt.path}`
-    );
+    adapter.loadThing({
+      href: `${protocol}://${host}:${service.port}${service.txt.path}`,
+      authentication: {
+        method: 'none',
+      },
+    });
   });
   webthingBrowser.on('serviceDown', (service) => {
     const host = service.host.replace(/\.$/, '');
@@ -801,7 +808,12 @@ function startDNSDiscovery(adapter) {
   subtypeBrowser =
     new dnssd.Browser(new dnssd.ServiceType('_http._tcp,_webthing'));
   subtypeBrowser.on('serviceUp', (service) => {
-    adapter.loadThing(service.txt.url);
+    adapter.loadThing({
+      href: service.txt.url,
+      authentication: {
+        method: 'none',
+      },
+    });
   });
   subtypeBrowser.on('serviceDown', (service) => {
     adapter.unloadThing(service.txt.url);
@@ -812,7 +824,12 @@ function startDNSDiscovery(adapter) {
   httpBrowser.on('serviceUp', (service) => {
     if (typeof service.txt === 'object' &&
         service.txt.hasOwnProperty('webthing')) {
-      adapter.loadThing(service.txt.url);
+      adapter.loadThing({
+        href: service.txt.url,
+        authentication: {
+          method: 'none',
+        },
+      });
     }
   });
   httpBrowser.on('serviceDown', (service) => {
