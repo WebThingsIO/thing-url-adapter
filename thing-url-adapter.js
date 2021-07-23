@@ -127,6 +127,7 @@ class ThingURLDevice extends Device {
     this.mdnsUrl = mdnsUrl;
     this.actionsUrl = null;
     this.eventsUrl = null;
+    this.allPropertiesUrl = null;
     this.wsUrl = null;
     this.description = description.description;
     this.propertyPromises = [];
@@ -165,52 +166,6 @@ class ThingURLDevice extends Device {
       this.addEvent(eventName, event);
     }
 
-    for (const propertyName in description.properties) {
-      const propertyDescription = description.properties[propertyName];
-
-      let propertyUrl;
-      if (propertyDescription.hasOwnProperty('links')) {
-        for (const link of propertyDescription.links) {
-          if (!link.rel || link.rel === 'property') {
-            propertyUrl = this.baseHref + link.href;
-            break;
-          }
-        }
-      }
-
-      if (!propertyUrl) {
-        if (!propertyDescription.href) {
-          continue;
-        }
-
-        propertyUrl = this.baseHref + propertyDescription.href;
-      }
-
-      this.propertyPromises.push(
-        fetch(propertyUrl, {
-          headers: getHeaders(this.authentication),
-        }).then((res) => {
-          return res.json();
-        }).then((res) => {
-          propertyDescription.value = res[propertyName];
-          if (propertyDescription.hasOwnProperty('links')) {
-            propertyDescription.links = propertyDescription.links.map((l) => {
-              if (!l.href.startsWith('http://') &&
-                  !l.href.startsWith('https://')) {
-                l.proxy = true;
-              }
-              return l;
-            });
-          }
-          const property = new ThingURLProperty(
-            this, propertyName, propertyUrl, propertyDescription);
-          this.properties.set(propertyName, property);
-        }).catch((e) => {
-          console.log(`Failed to connect to ${propertyUrl}: ${e}`);
-        })
-      );
-    }
-
     // If a websocket endpoint exists, connect to it.
     if (description.hasOwnProperty('links')) {
       for (const link of description.links) {
@@ -219,7 +174,7 @@ class ThingURLDevice extends Device {
         } else if (link.rel === 'events') {
           this.eventsUrl = this.baseHref + link.href;
         } else if (link.rel === 'properties') {
-          // pass
+          this.allPropertiesUrl = this.baseHref + link.href;
         } else if (link.rel === 'alternate') {
           if (link.mediaType === 'text/html') {
             if (!link.href.startsWith('http://') &&
@@ -242,6 +197,69 @@ class ThingURLDevice extends Device {
         }
       }
     }
+
+    if (this.allPropertiesUrl) {
+      this.allPropertyValuesPromise = fetch(this.allPropertiesUrl, {
+        headers: getHeaders(this.authentication),
+      }).then((res) => {
+        return res.json();
+      });
+    }
+
+    for (const propertyName in description.properties) {
+      const propertyDescription = description.properties[propertyName];
+
+      let propertyUrl;
+      if (propertyDescription.hasOwnProperty('links')) {
+        for (const link of propertyDescription.links) {
+          if (!link.rel || link.rel === 'property') {
+            propertyUrl = this.baseHref + link.href;
+            break;
+          }
+        }
+      }
+
+      if (!propertyUrl) {
+        if (!propertyDescription.href) {
+          continue;
+        }
+
+        propertyUrl = this.baseHref + propertyDescription.href;
+      }
+
+      let propertyValuePromise;
+      if (this.allPropertiesUrl) {
+        propertyValuePromise = this.allPropertyValuesPromise;
+      } else {
+        propertyValuePromise = fetch(propertyUrl, {
+          headers: getHeaders(this.authentication),
+        }).then((res) => {
+          return res.json();
+        });
+      }
+
+      this.propertyPromises.push(
+        propertyValuePromise.then((res) => {
+          propertyDescription.value = res[propertyName];
+          if (propertyDescription.hasOwnProperty('links')) {
+            propertyDescription.links = propertyDescription.links.map((l) => {
+              if (!l.href.startsWith('http://') &&
+                  !l.href.startsWith('https://')) {
+                l.proxy = true;
+              }
+              return l;
+            });
+          }
+          const property = new ThingURLProperty(
+            this, propertyName, propertyUrl, propertyDescription);
+          this.properties.set(propertyName, property);
+        }).catch((e) => {
+          console.log(`Failed to connect to ${propertyUrl}: ${e}`);
+        })
+      );
+    }
+
+    this.allPropertyValuesPromise = null;
 
     this.startReading();
   }
@@ -396,70 +414,76 @@ class ThingURLDevice extends Device {
       return;
     }
 
-    // Update properties
-    await Promise.all(Array.from(this.properties.values()).map((prop) => {
-      return fetch(prop.url, {
-        headers: getHeaders(this.authentication),
-      }).then((res) => {
-        return res.json();
-      }).then((res) => {
-        const newValue = res[prop.name];
-        prop.getValue().then((value) => {
+    try {
+      // Update properties
+      if (this.allPropertiesUrl) {
+        const res = await fetch(this.allPropertiesUrl, {
+          headers: getHeaders(this.authentication),
+        });
+        const json = await res.json();
+        for (const prop of this.properties.values()) {
+          const newValue = json[prop.name];
+          const value = await prop.getValue();
           if (value !== newValue) {
             prop.setCachedValue(newValue);
             this.notifyPropertyChanged(prop);
           }
-        });
-      });
-    })).then(() => {
+        }
+      } else {
+        await Promise.all(Array.from(this.properties.values()).map((prop) => {
+          return fetch(prop.url, {
+            headers: getHeaders(this.authentication),
+          }).then((res) => {
+            return res.json();
+          }).then((res) => {
+            const newValue = res[prop.name];
+            prop.getValue().then((value) => {
+              if (value !== newValue) {
+                prop.setCachedValue(newValue);
+                this.notifyPropertyChanged(prop);
+              }
+            });
+          });
+        }));
+      }
       // Check for new actions
       if (this.actionsUrl !== null) {
-        return fetch(this.actionsUrl, {
+        const res = await fetch(this.actionsUrl, {
           headers: getHeaders(this.authentication),
-        }).then((res) => {
-          return res.json();
-        }).then((actions) => {
-          for (let action of actions) {
-            const actionName = Object.keys(action)[0];
-            action = action[actionName];
-            const requestedAction =
-              this.requestedActions.get(action.href);
-
-            if (requestedAction && action.status !== requestedAction.status) {
-              requestedAction.status = action.status;
-              requestedAction.timeRequested = action.timeRequested;
-              requestedAction.timeCompleted = action.timeCompleted;
-              this.actionNotify(requestedAction);
-            }
-          }
         });
-      }
+        const actions = await res.json();
+        for (let action of actions) {
+          const actionName = Object.keys(action)[0];
+          action = action[actionName];
+          const requestedAction =
+            this.requestedActions.get(action.href);
 
-      return Promise.resolve();
-    }).then(() => {
+          if (requestedAction && action.status !== requestedAction.status) {
+            requestedAction.status = action.status;
+            requestedAction.timeRequested = action.timeRequested;
+            requestedAction.timeCompleted = action.timeCompleted;
+            this.actionNotify(requestedAction);
+          }
+        }
+      }
       // Check for new events
       if (this.eventsUrl !== null) {
-        return fetch(this.eventsUrl, {
+        const res = await fetch(this.eventsUrl, {
           headers: getHeaders(this.authentication),
-        }).then((res) => {
-          return res.json();
-        }).then((events) => {
-          for (let event of events) {
-            const eventName = Object.keys(event)[0];
-            event = event[eventName];
-            this.createEvent(eventName, event);
-          }
         });
+        const events = await res.json();
+        for (let event of events) {
+          const eventName = Object.keys(event)[0];
+          event = event[eventName];
+          this.createEvent(eventName, event);
+        }
       }
 
-      return Promise.resolve();
-    }).then(() => {
       this.connectedNotify(true);
-      return Promise.resolve();
-    }).catch((e) => {
+    } catch (e) {
       console.log(`Failed to poll device: ${e}`);
       this.connectedNotify(false);
-    });
+    }
 
     if (this.scheduledUpdate) {
       clearTimeout(this.scheduledUpdate);
