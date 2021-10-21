@@ -753,7 +753,9 @@ class ThingURLAdapter extends Adapter {
       const config = await db.loadConfig();
 
       // If the device's URL is saved in the config, remove it.
-      const urlIndex = config.urls.indexOf(device.url);
+      const urlIndex = config.urls.findIndex((configInfo) => {
+        return configInfo.href === device.url;
+      });
       if (urlIndex >= 0) {
         config.urls.splice(urlIndex, 1);
         await db.saveConfig(config);
